@@ -1,0 +1,21 @@
+[package]
+name = "hauler-cli"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "hauler"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1.0.104"
+clap = { version = "4.6.7", features = ["derive"] }
+hauler-engine = { version = "0.1.0", path = "../hauler-engine" }
+indicatif = "0.18.6"
+tokio = { version = "1.54.1", features = ["rt-multi-thread", "macros", "signal"] }
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+
+[dev-dependencies]
+hauler-testserver = { path = "../hauler-testserver" }
+tokio = { version = "1.54.1", features = ["rt-multi-thread", "macros"] }
