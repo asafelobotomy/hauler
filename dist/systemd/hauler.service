@@ -1,0 +1,15 @@
+[Unit]
+Description=hauler download daemon
+Documentation=https://github.com/OWNER/hauler
+Requires=hauler.socket
+After=hauler.socket network-online.target
+
+[Service]
+Type=simple
+ExecStart=@BINDIR@/haulerd
+Restart=on-failure
+# Give running downloads time to flush and save their progress.
+TimeoutStopSec=15
+
+[Install]
+Also=hauler.socket

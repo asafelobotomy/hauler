@@ -21,4 +21,4 @@ tracing = "0.1.44"
 hauler-testserver = { path = "../hauler-testserver" }
 hex = "0.4.3"
 sha2 = "0.11.1"
-tokio = { version = "1.54.1", features = ["rt-multi-thread", "macros"] }
+tokio = { version = "1.54.1", features = ["rt-multi-thread", "macros", "test-util"] }

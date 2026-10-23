@@ -1,0 +1,33 @@
+[package]
+name = "hauler-daemon"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "haulerd"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1.0.104"
+clap = { version = "4.6.7", features = ["derive"] }
+futures-util = "0.3.34"
+hauler-engine = { version = "0.1.0", path = "../hauler-engine" }
+hauler-ipc = { version = "0.1.0", path = "../hauler-ipc" }
+rusqlite = { version = "0.40.2", features = ["bundled"] }
+serde = "1.0.229"
+serde_json = "1.0.154"
+tokio = { version = "1.54.1", features = ["rt-multi-thread", "macros", "net", "io-util", "signal", "sync", "time"] }
+tokio-util = "0.7.20"
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+zbus = { version = "5.13.2", default-features = false, features = ["tokio"] }
+
+[dev-dependencies]
+anyhow = "1.0.104"
+hauler-testserver = { path = "../hauler-testserver" }
+hex = "0.4.3"
+sha2 = "0.11.0"
+tokio = { version = "1.54.1", features = ["rt-multi-thread", "macros", "test-util"] }
+tokio-util = "0.7.20"

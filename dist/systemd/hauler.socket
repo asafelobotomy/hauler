@@ -1,0 +1,10 @@
+[Unit]
+Description=hauler download daemon socket
+
+[Socket]
+ListenStream=%t/hauler/hauler.sock
+SocketMode=0600
+DirectoryMode=0700
+
+[Install]
+WantedBy=sockets.target

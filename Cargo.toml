@@ -1,9 +1,9 @@
 [workspace]
 resolver = "3"
-members = ["crates/hauler-engine", "crates/hauler-cli", "crates/hauler-testserver"]
+members = ["crates/hauler-engine", "crates/hauler-cli", "crates/hauler-testserver", "crates/hauler-ipc", "crates/hauler-daemon"]
 
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.88"
 repository = "https://github.com/OWNER/hauler"

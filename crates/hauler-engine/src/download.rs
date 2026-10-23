@@ -16,6 +16,7 @@ use tracing::{debug, info, warn};
 
 use crate::checksum::Checksum;
 use crate::error::{Error, Result};
+use crate::limit::Limiter;
 use crate::plan::Plan;
 use crate::probe::{self, Probe, sanitize_filename};
 use crate::state::ResumeState;
@@ -45,6 +46,8 @@ pub struct Options {
     pub checksum: Option<Checksum>,
     /// Ignore existing resume state and start over.
     pub restart: bool,
+    /// Speed limits to obey, e.g. this download's own and a global one.
+    pub limiter: Vec<Arc<Limiter>>,
 }
 
 impl Default for Options {
@@ -62,6 +65,7 @@ impl Default for Options {
             filename: None,
             checksum: None,
             restart: false,
+            limiter: Vec::new(),
         }
     }
 }
@@ -277,6 +281,12 @@ where
             }
             Err(e) => return Err(e),
         }
+    }
+}
+
+async fn throttle(limiters: &[Arc<Limiter>], n: u64) {
+    for l in limiters {
+        l.acquire(n).await;
     }
 }
 
@@ -662,6 +672,10 @@ async fn stream_segment(
         writer.buf.extend_from_slice(&chunk[..take]);
         stat.bytes.fetch_add(take as u64, Ordering::Relaxed);
         shared.progress.received.fetch_add(take as u64, Ordering::Relaxed);
+        tokio::select! {
+            _ = shared.stop.cancelled() => return Ok(FetchEnd::Stopped),
+            _ = throttle(&shared.opts.limiter, take as u64) => {}
+        }
 
         if done {
             return Ok(FetchEnd::Done);
@@ -757,6 +771,10 @@ async fn stream_once(
             Ok(Some(Ok(chunk))) => {
                 buf.extend_from_slice(&chunk);
                 progress.received.fetch_add(chunk.len() as u64, Ordering::Relaxed);
+                tokio::select! {
+                    _ = cancel.cancelled() => break Ok(false),
+                    _ = throttle(&opts.limiter, chunk.len() as u64) => {}
+                }
                 if buf.len() >= opts.buffer {
                     let (f, data) = (file.clone(), std::mem::take(&mut buf));
                     let data = blocking(move || f.write_all_at(&data, offset).map(|()| data)).await?;

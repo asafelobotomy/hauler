@@ -16,6 +16,7 @@
 mod checksum;
 mod download;
 mod error;
+mod limit;
 pub mod plan;
 mod probe;
 mod state;
@@ -23,7 +24,8 @@ mod state;
 pub use checksum::{Checksum, sha256_file};
 pub use download::{Options, Outcome, Progress, Task, client, prepare};
 pub use error::{Error, Result};
+pub use limit::Limiter;
 pub use probe::{Probe, probe};
-pub use reqwest::header;
+pub use reqwest::{Client, Url, header};
 pub use state::{ResumeState, SegmentState};
 pub use tokio_util::sync::CancellationToken;

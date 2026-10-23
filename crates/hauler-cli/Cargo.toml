@@ -11,7 +11,9 @@ path = "src/main.rs"
 anyhow = "1.0.104"
 clap = { version = "4.6.7", features = ["derive"] }
 hauler-engine = { version = "0.1.0", path = "../hauler-engine" }
+hauler-ipc = { version = "0.1.0", path = "../hauler-ipc" }
 indicatif = "0.18.6"
+libc = "0.2.191"
 tokio = { version = "1.54.1", features = ["rt-multi-thread", "macros", "signal"] }
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
