@@ -55,7 +55,7 @@ for plugin in "${extra_plugins[@]}"; do
     patchelf --set-rpath "\$ORIGIN/$up/../lib:\$ORIGIN" "$APPDIR/usr/plugins/$plugin"
 done
 
-version=$(cargo pkgid -p hauler-desktop | sed 's/.*[#@]//')-$(git rev-parse --short HEAD)
+version=${VERSION:-$(cargo pkgid -p hauler-desktop | sed "s/.*[#@]//")-$(git rev-parse --short HEAD)}
 export QMAKE=qmake6
 export QML_SOURCES_PATHS="$PWD/crates/hauler-desktop/qml:$PWD/$OUT/qml-extra"
 # offscreen is tiny and lets the AppImage run headless (smoke tests, CI).

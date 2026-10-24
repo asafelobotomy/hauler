@@ -1,0 +1,41 @@
+# Builds hauler from this source tree (used by CI and for local installs):
+#
+#   cd dist/arch && makepkg -si
+#
+# An AUR package would use the same steps with a release tarball as source.
+
+pkgname=hauler
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='Fast, resumable download manager: segmented engine, systemd daemon and Kirigami app'
+arch=('x86_64')
+url='https://github.com/asafelobotomy/hauler'
+license=('GPL-3.0-or-later' 'MIT OR Apache-2.0')
+depends=('gcc-libs' 'glibc' 'hicolor-icon-theme' 'qt6-base' 'qt6-declarative'
+         'kirigami' 'kitemmodels' 'qqc2-desktop-style')
+makedepends=('cargo' 'cmake' 'git')
+# Rust links its own LTO; makepkg's C/C++ LTO flags break the cxx-qt objects.
+options=('!lto' '!debug')
+
+_root() {
+  cd "$startdir/../.."
+}
+
+build() {
+  _root
+  export CARGO_TARGET_DIR="$srcdir/target"
+  cargo build --release --locked -p hauler-cli -p hauler-daemon -p hauler-desktop
+}
+
+package() {
+  _root
+  install -Dm755 -t "$pkgdir/usr/bin" \
+    "$srcdir/target/release/hauler" "$srcdir/target/release/haulerd" "$srcdir/target/release/hauler-desktop"
+  install -Dm644 dist/systemd/hauler.socket "$pkgdir/usr/lib/systemd/user/hauler.socket"
+  sed 's|@BINDIR@|/usr/bin|' dist/systemd/hauler.service > hauler.service.generated
+  install -Dm644 hauler.service.generated "$pkgdir/usr/lib/systemd/user/hauler.service"
+  rm hauler.service.generated
+  install -Dm644 dist/hauler.desktop "$pkgdir/usr/share/applications/hauler.desktop"
+  install -Dm644 -t "$pkgdir/usr/share/licenses/$pkgname" COPYING LICENSE-MIT LICENSE-APACHE
+  install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+}

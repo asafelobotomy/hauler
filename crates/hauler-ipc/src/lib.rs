@@ -482,8 +482,11 @@ mod tests {
         assert!(check_private_dir(&dir).is_ok());
         std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o777)).unwrap();
         assert!(check_private_dir(&dir).is_err());
-        // Root's directories (not ours) are refused too.
-        assert!(check_private_dir(std::path::Path::new("/")).is_err());
+        // Someone else's directory is refused too (unless we are root, as in
+        // CI containers, where / is ours).
+        if uid() != 0 {
+            assert!(check_private_dir(std::path::Path::new("/")).is_err());
+        }
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
