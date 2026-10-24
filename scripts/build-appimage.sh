@@ -58,8 +58,11 @@ done
 version=${VERSION:-$(cargo pkgid -p hauler-desktop | sed "s/.*[#@]//")-$(git rev-parse --short HEAD)}
 export QMAKE=qmake6
 export QML_SOURCES_PATHS="$PWD/crates/hauler-desktop/qml:$PWD/$OUT/qml-extra"
+# Wayland's platform plugin is libqwayland.so since Qt 6.10 and
+# libqwayland-egl.so plus libqwayland-generic.so before; take what this Qt has.
 # offscreen is tiny and lets the AppImage run headless (smoke tests, CI).
-export EXTRA_PLATFORM_PLUGINS="libqwayland.so;libqoffscreen.so"
+wayland_plugins=$(cd "$QT_PLUGINS/platforms" && printf '%s;' libqwayland*.so)
+export EXTRA_PLATFORM_PLUGINS="${wayland_plugins}libqoffscreen.so"
 export EXTRA_QT_MODULES="svg"
 export LINUXDEPLOY_OUTPUT_VERSION=$version
 # linuxdeploy's bundled strip is older than this toolchain's binaries.
