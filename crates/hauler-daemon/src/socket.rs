@@ -28,6 +28,9 @@ pub fn from_systemd() -> Option<UnixListener> {
 pub fn bind(path: &Path) -> io::Result<UnixListener> {
     if let Some(dir) = path.parent() {
         DirBuilder::new().recursive(true).mode(0o700).create(dir)?;
+        // An existing directory keeps its owner and mode; refuse one we do
+        // not control.
+        hauler_ipc::check_private_dir(dir)?;
     }
     if path.exists() {
         if UnixStream::connect(path).is_ok() {

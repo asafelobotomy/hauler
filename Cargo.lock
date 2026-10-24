@@ -846,6 +846,7 @@ dependencies = [
  "hex",
  "reqwest",
  "rustix",
+ "rustls",
  "serde",
  "serde_json",
  "sha2",
@@ -859,6 +860,7 @@ dependencies = [
 name = "hauler-ipc"
 version = "0.1.0"
 dependencies = [
+ "libc",
  "serde",
  "serde_json",
  "thiserror 2.0.21",

@@ -205,8 +205,12 @@ impl Manager {
             added_at: now(),
             finished_at: None,
         };
-        let spec =
-            TaskSpec { filename: p.filename, headers: p.headers, checksum: p.checksum, connections: p.connections };
+        let spec = TaskSpec {
+            filename: info.name.clone(),
+            headers: p.headers,
+            checksum: p.checksum,
+            connections: p.connections,
+        };
         info.id = self.store.insert(&info, &spec).map_err(internal)?;
         let limiter = Limiter::new(info.limit);
         inner.tasks.insert(info.id, Entry { info: info.clone(), spec, limiter, run: None });
@@ -279,7 +283,8 @@ impl Manager {
         if let Some(h) = handle {
             let _ = h.await;
         }
-        if delete_files && let Some(name) = &entry.spec.filename {
+        // Only ever a single plain name inside the task's folder.
+        if delete_files && let Some(name) = entry.spec.filename.as_deref().filter(|n| is_plain_name(n)) {
             let target = Path::new(&entry.info.dir).join(name);
             for suffix in ["", ".part", ".hauler"] {
                 let mut p = target.clone().into_os_string();
@@ -411,6 +416,7 @@ impl Manager {
             _ if info.state == TaskState::Completed => whole(size.unwrap_or(0)),
             _ => {
                 let saved = name
+                    .filter(|n| is_plain_name(n))
                     .map(|n| Path::new(&info.dir).join(format!("{n}.hauler")))
                     .and_then(|p| engine::ResumeState::load(&p).ok().flatten());
                 match saved {
@@ -677,6 +683,12 @@ fn stop(entry: &mut Entry, state: TaskState) {
         run.cancel.cancel();
     }
     entry.info.state = state;
+}
+
+/// A file name with no directory parts, so joining it to a folder stays there.
+fn is_plain_name(name: &str) -> bool {
+    let mut parts = Path::new(name).components();
+    matches!((parts.next(), parts.next()), (Some(std::path::Component::Normal(_)), None))
 }
 
 fn internal(e: impl std::fmt::Display) -> RpcError {

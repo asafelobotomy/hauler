@@ -10,7 +10,7 @@ Kirigami.Dialog {
     required property TaskModel model
     required property var backend
     property int taskId: -1
-    readonly property int row: taskId >= 0 && model.count >= 0 ? model.indexOfId(taskId) + model.revision * 0 : -1
+    readonly property int row: taskId >= 0 && model.count >= 0 ? model.indexOfId(taskId) + model.changes * 0 : -1
     readonly property var task: row >= 0 ? model.get(row) : null
 
     function openFor(id) {

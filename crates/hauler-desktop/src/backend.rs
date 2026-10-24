@@ -246,14 +246,24 @@ async fn connect() -> Result<(Client, Events), ClientError> {
 
 /// Start `haulerd` when socket activation is not set up: next to this
 /// binary first (a development build), then from `$PATH`.
+///
+/// Its output goes where ours does, so a failure to start is visible, and a
+/// thread waits on it so it never lingers as a zombie if it exits early.
 fn spawn_daemon() {
     let sibling = std::env::current_exe().ok().and_then(|p| p.parent().map(|d| d.join("haulerd")));
     let program = sibling.filter(|p| p.exists()).unwrap_or_else(|| PathBuf::from("haulerd"));
-    let _ = std::process::Command::new(program)
-        .stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .spawn();
+    match std::process::Command::new(&program).stdin(std::process::Stdio::null()).spawn() {
+        Ok(mut child) => {
+            std::thread::spawn(move || {
+                if let Ok(status) = child.wait()
+                    && !status.success()
+                {
+                    eprintln!("haulerd exited: {status}");
+                }
+            });
+        }
+        Err(e) => eprintln!("could not start {}: {e}", program.display()),
+    }
 }
 
 /// Serve one daemon connection. Returns false when the UI has gone away.

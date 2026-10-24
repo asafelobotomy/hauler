@@ -30,6 +30,7 @@ async fn main() -> std::io::Result<()> {
         bytes_per_sec: (args.kib_per_sec > 0).then_some(args.kib_per_sec * 1024),
         slow_every: args.slow_every.map(|n| (n, 10)),
         filename: None,
+        redirect_to: None,
     };
     let server = spawn_on(args.listen, config).await?;
     println!("serving {}", server.url());

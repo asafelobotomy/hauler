@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 
+use hauler_engine::header::{self, HeaderMap};
 use hauler_engine::{CancellationToken, Error, Options, Outcome, client, prepare, sha256_file};
 use hauler_testserver::{Config, content_byte, fill, spawn};
 use sha2::{Digest, Sha256};
@@ -177,4 +178,109 @@ async fn existing_file_gets_a_new_name() {
     assert_eq!(task.target(), dir.join("file (1).bin"));
     task.run(CancellationToken::new()).await.unwrap();
     assert_eq!(std::fs::read(dir.join("file.bin")).unwrap(), b"keep me");
+}
+
+#[tokio::test]
+async fn credentials_stay_with_the_origin_they_were_given_for() {
+    let size = 2 * MIB;
+    let target = spawn(Config { size, ..Config::default() }).await.unwrap();
+    let redirect = spawn(Config { redirect_to: Some(target.url()), ..Config::default() }).await.unwrap();
+    let mut headers = HeaderMap::new();
+    headers.insert(header::COOKIE, "session=secret".parse().unwrap());
+    headers.insert(header::AUTHORIZATION, "Bearer secret".parse().unwrap());
+
+    // Redirected to another origin: the target never sees the credentials.
+    let dir = tempdir("redirect");
+    let o = Options { headers: headers.clone(), ..opts() };
+    let task = prepare(client().unwrap(), &redirect.url(), &dir, o).await.unwrap();
+    task.run(CancellationToken::new()).await.unwrap();
+    assert_content(&dir.join("file.bin"), size);
+    assert!(redirect.stats.cookie_requests.load(Ordering::SeqCst) > 0);
+    assert_eq!(target.stats.cookie_requests.load(Ordering::SeqCst), 0);
+
+    // Same origin: they are sent on every request.
+    let before = target.stats.requests.load(Ordering::SeqCst);
+    let dir = tempdir("same-origin");
+    let task = prepare(client().unwrap(), &target.url(), &dir, Options { headers, ..opts() }).await.unwrap();
+    task.run(CancellationToken::new()).await.unwrap();
+    let requests = target.stats.requests.load(Ordering::SeqCst) - before;
+    assert_eq!(target.stats.cookie_requests.load(Ordering::SeqCst), requests);
+}
+
+#[tokio::test]
+async fn concurrent_downloads_never_share_a_part_file() {
+    let size = 4 * MIB;
+    let server = spawn(Config { size, bytes_per_sec: Some(2 * MIB), ..Config::default() }).await.unwrap();
+    let dir = tempdir("shared");
+    let a = prepare(client().unwrap(), &server.url(), &dir, opts()).await.unwrap();
+    let b = prepare(client().unwrap(), &server.url(), &dir, opts()).await.unwrap();
+    assert_eq!(a.target(), dir.join("file.bin"));
+    assert_eq!(b.target(), dir.join("file (1).bin"));
+
+    let (ra, rb) = tokio::join!(a.run(CancellationToken::new()), b.run(CancellationToken::new()));
+    let (Outcome::Completed(pa), Outcome::Completed(pb)) = (ra.unwrap(), rb.unwrap()) else { panic!() };
+    assert_content(&pa, size);
+    assert_content(&pb, size);
+}
+
+#[tokio::test]
+async fn a_paused_download_resumes_while_a_duplicate_takes_a_new_name() {
+    let size = 8 * MIB;
+    let server = spawn(Config { size, bytes_per_sec: Some(MIB), ..Config::default() }).await.unwrap();
+    let dir = tempdir("dup-resume");
+    let task = prepare(client().unwrap(), &server.url(), &dir, opts()).await.unwrap();
+    let cancel = CancellationToken::new();
+    let stopper = cancel.clone();
+    tokio::spawn(async move {
+        tokio::time::sleep(Duration::from_millis(600)).await;
+        stopper.cancel();
+    });
+    task.run(cancel).await.unwrap();
+
+    let resumed = prepare(client().unwrap(), &server.url(), &dir, opts()).await.unwrap();
+    let duplicate = prepare(client().unwrap(), &server.url(), &dir, opts()).await.unwrap();
+    assert_eq!(resumed.target(), dir.join("file.bin"));
+    assert!(resumed.resumed_bytes() > 0);
+    assert_eq!(duplicate.target(), dir.join("file (1).bin"));
+    assert_eq!(duplicate.resumed_bytes(), 0);
+}
+
+#[tokio::test]
+async fn pausing_a_non_resumable_download_keeps_its_name() {
+    let size = 4 * MIB;
+    let server =
+        spawn(Config { size, ranges: false, bytes_per_sec: Some(2 * MIB), ..Config::default() }).await.unwrap();
+    let dir = tempdir("stream-pause");
+    let task = prepare(client().unwrap(), &server.url(), &dir, opts()).await.unwrap();
+    let cancel = CancellationToken::new();
+    let stopper = cancel.clone();
+    tokio::spawn(async move {
+        tokio::time::sleep(Duration::from_millis(500)).await;
+        stopper.cancel();
+    });
+    assert!(matches!(task.run(cancel).await.unwrap(), Outcome::Paused));
+
+    let task = prepare(client().unwrap(), &server.url(), &dir, opts()).await.unwrap();
+    assert_eq!(task.target(), dir.join("file.bin"));
+    assert!(!task.resumable());
+    let Outcome::Completed(path) = task.run(CancellationToken::new()).await.unwrap() else { panic!() };
+    assert_content(&path, size);
+    let mut left: Vec<_> = std::fs::read_dir(&dir).unwrap().map(|e| e.unwrap().file_name()).collect();
+    left.sort();
+    assert_eq!(left, ["file.bin"], "no orphaned partial files");
+}
+
+#[tokio::test]
+async fn certificate_errors_fail_without_retrying() {
+    let server = spawn(Config::default()).await.unwrap();
+    // Plain HTTP on the other end: the TLS handshake can never succeed.
+    let url = server.url().replace("http://", "https://");
+    let dir = tempdir("tls");
+    let started = std::time::Instant::now();
+    let err = match prepare(client().unwrap(), &url, &dir, opts()).await {
+        Ok(_) => panic!("TLS against a plain HTTP server succeeded"),
+        Err(e) => e,
+    };
+    assert!(!matches!(err, Error::RetriesExhausted { .. }), "{err}");
+    assert!(started.elapsed() < Duration::from_secs(2), "took {:?}", started.elapsed());
 }

@@ -10,8 +10,8 @@ Kirigami.ApplicationWindow {
     property bool quitting: false
     readonly property var settings: backend.settingsJson ? JSON.parse(backend.settingsJson) : null
     readonly property var network: backend.networkJson ? JSON.parse(backend.networkJson) : null
-    readonly property int runningCount: tasks.countWhere(t => t.status === "running") + tasks.revision * 0
-    readonly property real totalSpeed: tasks.totalSpeed() + tasks.revision * 0
+    readonly property int runningCount: tasks.runningCount
+    readonly property real totalSpeed: tasks.totalSpeed
 
     title: "Hauler"
     // With --minimized, start in the tray (if there is one).
@@ -104,12 +104,6 @@ Kirigami.ApplicationWindow {
 
     TaskModel {
         id: tasks
-
-        // Bumped on every change so bindings over the whole model refresh.
-        property int revision: 0
-
-        onCountChanged: revision++
-        onDataChanged: revision++
     }
 
     pageStack.initialPage: TasksPage {

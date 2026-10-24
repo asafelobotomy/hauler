@@ -49,7 +49,13 @@ CREATE TABLE IF NOT EXISTS settings (
 ";
 
 impl Store {
-    pub fn open(path: &Path) -> rusqlite::Result<Self> {
+    /// The database holds request headers such as cookies, so it is made
+    /// readable by this user only. SQLite gives the `-wal` and `-shm` files
+    /// the same mode as the database.
+    pub fn open(path: &Path) -> anyhow::Result<Self> {
+        use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+        std::fs::OpenOptions::new().create(true).append(true).mode(0o600).open(path)?;
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))?;
         let conn = Connection::open(path)?;
         conn.pragma_update(None, "journal_mode", "WAL")?;
         conn.pragma_update(None, "synchronous", "NORMAL")?;
@@ -202,6 +208,25 @@ mod tests {
             added_at: 1,
             finished_at: None,
         }
+    }
+
+    #[test]
+    fn database_files_are_private() {
+        use std::os::unix::fs::{MetadataExt, PermissionsExt};
+        let dir = std::env::temp_dir().join(format!("hauler-store-test-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir(&dir).unwrap();
+        let path = dir.join("hauler.db");
+        // An existing world-readable database is tightened too.
+        std::fs::write(&path, b"").unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).unwrap();
+        let store = Store::open(&path).unwrap();
+        store.insert(&info(), &TaskSpec::default()).unwrap();
+        for f in ["hauler.db", "hauler.db-wal"] {
+            assert_eq!(std::fs::metadata(dir.join(f)).unwrap().mode() & 0o777, 0o600, "{f}");
+        }
+        drop(store);
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]

@@ -9,7 +9,7 @@ use std::time::{Duration, Instant};
 
 use futures_util::StreamExt;
 use reqwest::header::{self, HeaderMap};
-use reqwest::{Client, StatusCode};
+use reqwest::{Client, StatusCode, Url};
 use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, info, warn};
@@ -133,6 +133,8 @@ pub struct Task {
     target: PathBuf,
     part: PathBuf,
     state_path: PathBuf,
+    /// The `.part` file, exclusively locked for as long as the task lives.
+    file: File,
     mode: Mode,
     progress: Arc<Progress>,
 }
@@ -141,6 +143,8 @@ pub struct Task {
 /// progress when the remote file is unchanged.
 pub async fn prepare(client: Client, url: &str, dir: &Path, opts: Options) -> Result<Task> {
     let probe = retry(&opts, || probe::probe(&client, url, &opts.headers)).await?;
+    let mut opts = opts;
+    opts.headers = headers_for(url, &probe.final_url, &opts.headers);
     let name = opts
         .filename
         .as_deref()
@@ -150,10 +154,20 @@ pub async fn prepare(client: Client, url: &str, dir: &Path, opts: Options) -> Re
         .unwrap_or_else(|| "download".into());
 
     let mut target = dir.join(&name);
-    let resume = !opts.restart && state_path(&target).exists();
+    let mut resume = !opts.restart && state_path(&target).exists();
     if !resume && (target.exists() || (!opts.restart && part_path(&target).exists())) {
         target = free_name(dir, &name);
     }
+    // Never share a part file: if another download (another task, or a
+    // `hauler get` next to the daemon) holds it, take the next free name.
+    let file = loop {
+        if let Some(f) = lock_part(&part_path(&target))? {
+            break f;
+        }
+        info!("{} is in use by another download", part_path(&target).display());
+        resume = false;
+        target = free_name(dir, &name);
+    };
     let part = part_path(&target);
     let state_path = state_path(&target);
 
@@ -185,7 +199,7 @@ pub async fn prepare(client: Client, url: &str, dir: &Path, opts: Options) -> Re
     if let Mode::Segmented { plan, .. } = &mode {
         progress.received.store(plan.written(), Ordering::Relaxed);
     }
-    Ok(Task { client, opts, url: url.to_owned(), probe, target, part, state_path, mode, progress })
+    Ok(Task { client, opts, url: url.to_owned(), probe, target, part, state_path, file, mode, progress })
 }
 
 impl Task {
@@ -215,13 +229,13 @@ impl Task {
 
     /// Download until complete, failed, or `cancel` fires (a pause).
     pub async fn run(self, cancel: CancellationToken) -> Result<Outcome> {
-        let Task { client, opts, url, probe, target, part, state_path, mode, progress } = self;
+        let Task { client, opts, url, probe, target, part, state_path, file, mode, progress } = self;
         let paths = Paths { target, part, state: state_path };
         match mode {
             Mode::Segmented { plan, fresh } => {
-                run_segmented(client, opts, url, probe, paths, plan, fresh, progress, cancel).await
+                run_segmented(client, opts, url, probe, paths, file, plan, fresh, progress, cancel).await
             }
-            Mode::Stream => run_stream(client, opts, probe, paths, progress, cancel).await,
+            Mode::Stream => run_stream(client, opts, url, probe, paths, file, progress, cancel).await,
         }
     }
 }
@@ -244,6 +258,38 @@ fn with_suffix(path: &Path, suffix: &str) -> PathBuf {
     let mut s = path.as_os_str().to_owned();
     s.push(suffix);
     PathBuf::from(s)
+}
+
+/// Headers to send to `final_url`. Credentials go only to the origin they
+/// were given for: after a redirect to another origin they are dropped, as
+/// browsers do, so a CDN or a hostile redirect never sees the user's cookies.
+fn headers_for(original: &str, final_url: &str, headers: &HeaderMap) -> HeaderMap {
+    let same_origin = match (Url::parse(original), Url::parse(final_url)) {
+        (Ok(a), Ok(b)) => a.origin() == b.origin(),
+        _ => false,
+    };
+    let mut h = headers.clone();
+    if !same_origin {
+        for name in [header::COOKIE, header::AUTHORIZATION, header::PROXY_AUTHORIZATION] {
+            h.remove(name);
+        }
+    }
+    h
+}
+
+/// Open the part file and take an exclusive advisory lock on it. `None`
+/// when another process or task already holds it.
+fn lock_part(path: &Path) -> Result<Option<File>> {
+    let f = OpenOptions::new().read(true).write(true).create(true).truncate(false).open(path)?;
+    match rustix::fs::flock(&f, rustix::fs::FlockOperation::NonBlockingLockExclusive) {
+        Ok(()) => Ok(Some(f)),
+        Err(rustix::io::Errno::WOULDBLOCK) => Ok(None),
+        // Some network filesystems cannot lock; carry on without it.
+        Err(e) => {
+            warn!("cannot lock {}: {e}", path.display());
+            Ok(Some(f))
+        }
+    }
 }
 
 /// `name.ext` -> `name (1).ext`, the first one with no file, part or state.
@@ -375,19 +421,17 @@ async fn run_segmented(
     url: String,
     probe: Probe,
     paths: Paths,
+    file: File,
     plan: Plan,
     fresh: bool,
     progress: Arc<Progress>,
     cancel: CancellationToken,
 ) -> Result<Outcome> {
     let size = probe.size.expect("segmented mode needs a size");
-    let file = if fresh {
-        let f = OpenOptions::new().read(true).write(true).create(true).truncate(true).open(&paths.part)?;
-        preallocate(&f, size)?;
-        f
-    } else {
-        OpenOptions::new().read(true).write(true).open(&paths.part)?
-    };
+    if fresh {
+        file.set_len(0)?;
+        preallocate(&file, size)?;
+    }
     let mut state =
         ResumeState::new(url, probe.final_url.clone(), size, probe.etag.clone(), probe.last_modified.clone());
     state.segments = plan.snapshot();
@@ -731,17 +775,24 @@ impl SegmentWriter<'_> {
 // ---------------------------------------------------------------------------
 // Stream mode
 
+#[allow(clippy::too_many_arguments)]
 async fn run_stream(
     client: Client,
     opts: Options,
+    url: String,
     probe: Probe,
     paths: Paths,
+    file: File,
     progress: Arc<Progress>,
     cancel: CancellationToken,
 ) -> Result<Outcome> {
+    // Nothing to resume from, but the state file keeps the name: the next run
+    // restarts into this same part instead of abandoning it for `name (1)`.
+    ResumeState::new(url, probe.final_url.clone(), probe.size.unwrap_or(0), None, None).save(&paths.state)?;
+    let file = Arc::new(file);
     let mut attempt = 0;
     loop {
-        match stream_once(&client, &opts, &probe, &paths, &progress, &cancel).await {
+        match stream_once(&client, &opts, &probe, &file, &progress, &cancel).await {
             Ok(true) => return finish(&opts, &paths).await,
             Ok(false) => return Ok(Outcome::Paused),
             Err(e) if e.is_retryable() && attempt < opts.max_retries => {
@@ -760,11 +811,11 @@ async fn stream_once(
     client: &Client,
     opts: &Options,
     probe: &Probe,
-    paths: &Paths,
+    file: &Arc<File>,
     progress: &Progress,
     cancel: &CancellationToken,
 ) -> Result<bool> {
-    let file = Arc::new(File::create(&paths.part)?);
+    file.set_len(0)?;
     let resp = client.get(&probe.final_url).headers(opts.headers.clone()).send().await?;
     if resp.status() != StatusCode::OK {
         return Err(probe::status_error(&resp));
@@ -811,7 +862,8 @@ async fn stream_once(
         {
             return Err(Error::Incomplete);
         }
-        blocking(move || file.sync_all()).await?;
+        let f = file.clone();
+        blocking(move || f.sync_all()).await?;
     }
     Ok(complete)
 }

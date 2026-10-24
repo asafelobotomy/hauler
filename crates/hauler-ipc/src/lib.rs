@@ -28,8 +28,23 @@ pub fn default_socket_path() -> PathBuf {
 }
 
 fn uid() -> u32 {
+    // SAFETY: getuid has no preconditions and cannot fail.
+    unsafe { libc::getuid() }
+}
+
+/// The socket's directory must belong to this user and be writable by no one
+/// else; otherwise another user could swap the socket for their own and read
+/// every URL and cookie sent to it. Matters most for the `/tmp` fallback.
+pub fn check_private_dir(dir: &std::path::Path) -> std::io::Result<()> {
     use std::os::unix::fs::MetadataExt;
-    std::fs::metadata("/proc/self").map(|m| m.uid()).unwrap_or(0)
+    let meta = std::fs::symlink_metadata(dir)?;
+    if !meta.is_dir() || meta.uid() != uid() || meta.mode() & 0o022 != 0 {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            format!("{} must be a directory you own that others cannot write to", dir.display()),
+        ));
+    }
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------
@@ -332,6 +347,11 @@ pub struct Client {
 impl Client {
     pub async fn connect(path: impl Into<PathBuf>) -> Result<Self, ClientError> {
         let path = path.into();
+        if let Some(dir) = path.parent()
+            && let Err(source) = check_private_dir(dir)
+        {
+            return Err(ClientError::Connect { path, source });
+        }
         let stream = UnixStream::connect(&path).await.map_err(|source| ClientError::Connect { path, source })?;
         let (read, writer) = stream.into_split();
         Ok(Self { lines: BufReader::new(read).lines(), writer, next_id: 1 })
@@ -451,6 +471,21 @@ impl Events {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn socket_dir_must_be_private() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = std::env::temp_dir().join(format!("hauler-ipc-test-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir(&dir).unwrap();
+        std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700)).unwrap();
+        assert!(check_private_dir(&dir).is_ok());
+        std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o777)).unwrap();
+        assert!(check_private_dir(&dir).is_err());
+        // Root's directories (not ours) are refused too.
+        assert!(check_private_dir(std::path::Path::new("/")).is_err());
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
 
     #[test]
     fn events_are_tagged() {

@@ -48,11 +48,20 @@ pub struct Config {
     pub slow_every: Option<(u64, u64)>,
     /// Send `Content-Disposition: attachment; filename=...`.
     pub filename: Option<String>,
+    /// Answer every request with a 302 to this URL instead.
+    pub redirect_to: Option<String>,
 }
 
 impl Default for Config {
     fn default() -> Self {
-        Self { size: 8 * 1024 * 1024, ranges: true, bytes_per_sec: None, slow_every: None, filename: None }
+        Self {
+            size: 8 * 1024 * 1024,
+            ranges: true,
+            bytes_per_sec: None,
+            slow_every: None,
+            filename: None,
+            redirect_to: None,
+        }
     }
 }
 
@@ -63,6 +72,8 @@ pub struct Stats {
     pub requests: AtomicU64,
     /// Bump to change the ETag, simulating the file changing on the server.
     pub version: AtomicU64,
+    /// Requests that carried a `Cookie` header.
+    pub cookie_requests: AtomicU64,
 }
 
 pub struct Server {
@@ -109,6 +120,17 @@ async fn handle(
     stats: Arc<Stats>,
 ) -> Result<Response<Body>, Infallible> {
     let n = stats.requests.fetch_add(1, Ordering::SeqCst) + 1;
+    if req.headers().contains_key(header::COOKIE) {
+        stats.cookie_requests.fetch_add(1, Ordering::SeqCst);
+    }
+    if let Some(to) = &config.redirect_to {
+        let resp = Response::builder()
+            .status(StatusCode::FOUND)
+            .header(header::LOCATION, to)
+            .body(Empty::new().boxed())
+            .unwrap();
+        return Ok(resp);
+    }
     let etag = format!("\"v{}-{}\"", stats.version.load(Ordering::SeqCst), config.size);
     let size = config.size;
 

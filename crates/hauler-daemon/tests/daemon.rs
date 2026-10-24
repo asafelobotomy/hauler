@@ -224,3 +224,24 @@ async fn rejects_bad_requests_and_removes_with_files() {
     assert!(client.list().await.unwrap().is_empty());
     daemon.stop().await;
 }
+
+#[tokio::test]
+async fn file_names_cannot_escape_the_download_folder() {
+    let server = spawn(ServerConfig { size: MIB, ..Default::default() }).await.unwrap();
+    let dir = tempdir("escape");
+    let daemon = Daemon::start(&dir).await;
+    let mut client = daemon.client().await;
+    let outside = dir.join("precious.txt");
+    std::fs::write(&outside, b"keep").unwrap();
+
+    for name in ["../precious.txt".to_string(), outside.to_string_lossy().into_owned()] {
+        let task = client
+            .add(&AddParams { url: server.url(), filename: Some(name), paused: true, ..Default::default() })
+            .await
+            .unwrap();
+        assert_eq!(task.name.as_deref(), Some("precious.txt"), "the name is reduced to its last part");
+        client.remove(task.id, true).await.unwrap();
+        assert_eq!(std::fs::read(&outside).unwrap(), b"keep", "nothing outside the folder is deleted");
+    }
+    daemon.stop().await;
+}

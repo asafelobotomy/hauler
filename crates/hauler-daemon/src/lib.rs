@@ -40,7 +40,8 @@ pub async fn run(config: Config, shutdown: CancellationToken) -> anyhow::Result<
     let store = match &config.db {
         Some(path) => {
             if let Some(dir) = path.parent() {
-                std::fs::create_dir_all(dir)?;
+                use std::os::unix::fs::DirBuilderExt;
+                std::fs::DirBuilder::new().recursive(true).mode(0o700).create(dir)?;
             }
             store::Store::open(path).with_context(|| format!("opening {}", path.display()))?
         }
