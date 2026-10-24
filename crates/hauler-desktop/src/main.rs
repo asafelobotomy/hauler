@@ -4,6 +4,7 @@ use cxx_qt_lib::{QQmlApplicationEngine, QQuickStyle, QString, QUrl};
 
 mod app;
 mod backend;
+mod daemon;
 
 fn main() {
     cxx_qt::init_qml_module!("org.hauler.desktop");
@@ -23,7 +24,7 @@ fn main() {
     }
     if let Some(app) = app.as_mut() {
         let code = app::ffi::hauler_exec(app);
-        backend::stop_spawned_daemon();
+        daemon::stop_spawned_daemon();
         std::process::exit(code);
     }
 }

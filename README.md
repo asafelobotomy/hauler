@@ -101,6 +101,12 @@ With every connection equal, both tools are limited by the server. With uneven c
 
 ## Testing
 
+No source file (Rust, QML, C++ or shell) may be longer than 400 lines, counting every line; split a file that grows past that into modules along its natural seams. CI runs the check next to rustfmt and clippy:
+
+```sh
+scripts/check-loc.sh
+```
+
 ```sh
 cargo test
 scripts/bench.sh 1024 8192 3 16    # size MiB, KiB/s per connection, slow every Nth, connections
