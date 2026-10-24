@@ -22,6 +22,8 @@ fn main() {
         engine.load(&QUrl::from("qrc:/qt/qml/org/hauler/desktop/qml/Main.qml"));
     }
     if let Some(app) = app.as_mut() {
-        std::process::exit(app::ffi::hauler_exec(app));
+        let code = app::ffi::hauler_exec(app);
+        backend::stop_spawned_daemon();
+        std::process::exit(code);
     }
 }

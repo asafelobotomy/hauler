@@ -831,6 +831,7 @@ dependencies = [
  "cxx-qt-build",
  "cxx-qt-lib",
  "hauler-ipc",
+ "libc",
  "serde",
  "serde_json",
  "tokio",

@@ -254,15 +254,34 @@ fn spawn_daemon() {
     let program = sibling.filter(|p| p.exists()).unwrap_or_else(|| PathBuf::from("haulerd"));
     match std::process::Command::new(&program).stdin(std::process::Stdio::null()).spawn() {
         Ok(mut child) => {
-            std::thread::spawn(move || {
+            let pid = child.id();
+            let reaper = std::thread::spawn(move || {
                 if let Ok(status) = child.wait()
                     && !status.success()
                 {
                     eprintln!("haulerd exited: {status}");
                 }
             });
+            *SPAWNED.lock().unwrap() = Some((pid, reaper));
         }
         Err(e) => eprintln!("could not start {}: {e}", program.display()),
+    }
+}
+
+/// The daemon this app started, if any: its pid and the thread waiting on it.
+static SPAWNED: std::sync::Mutex<Option<(u32, std::thread::JoinHandle<()>)>> = std::sync::Mutex::new(None);
+
+/// Stop the daemon this app started, letting it save its downloads' progress.
+/// Run from an AppImage, its binary disappears when the app exits, so it must
+/// not outlive us. A daemon from systemd or started elsewhere is left alone.
+pub fn stop_spawned_daemon() {
+    let Some((pid, reaper)) = SPAWNED.lock().unwrap().take() else { return };
+    // SAFETY: plain kill(2) on a pid we spawned and have not reaped yet.
+    unsafe { libc::kill(pid as libc::pid_t, libc::SIGTERM) };
+    // haulerd allows downloads up to 10 s to flush; wait a little longer.
+    let deadline = std::time::Instant::now() + Duration::from_secs(12);
+    while !reaper.is_finished() && std::time::Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(50));
     }
 }
 
