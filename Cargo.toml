@@ -3,7 +3,7 @@ resolver = "3"
 members = ["crates/hauler-engine", "crates/hauler-cli", "crates/hauler-testserver", "crates/hauler-ipc", "crates/hauler-daemon", "crates/hauler-desktop"]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 rust-version = "1.88"
 repository = "https://github.com/asafelobotomy/hauler"

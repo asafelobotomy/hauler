@@ -14,8 +14,8 @@ path = "src/main.rs"
 anyhow = "1.0.104"
 clap = { version = "4.6.7", features = ["derive"] }
 futures-util = "0.3.34"
-hauler-engine = { version = "0.1.0", path = "../hauler-engine" }
-hauler-ipc = { version = "0.1.0", path = "../hauler-ipc" }
+hauler-engine = { version = "0.1.1", path = "../hauler-engine" }
+hauler-ipc = { version = "0.1.1", path = "../hauler-ipc" }
 rusqlite = { version = "0.40.2", features = ["bundled"] }
 serde = "1.0.229"
 serde_json = "1.0.154"
