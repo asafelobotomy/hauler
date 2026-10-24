@@ -17,7 +17,7 @@ use tracing::{debug, info, warn};
 use crate::checksum::Checksum;
 use crate::error::{Error, Result};
 use crate::limit::Limiter;
-use crate::plan::Plan;
+use crate::plan::{Plan, SegmentView};
 use crate::probe::{self, Probe, sanitize_filename};
 use crate::state::ResumeState;
 
@@ -95,6 +95,18 @@ pub struct Progress {
     pub restarts: AtomicU64,
     /// Failed requests retried.
     pub retries: AtomicU64,
+    /// Segment map, refreshed about once a second. Empty in stream mode.
+    segments: Mutex<Vec<SegmentView>>,
+}
+
+impl Progress {
+    pub fn segments(&self) -> Vec<SegmentView> {
+        self.segments.lock().unwrap().clone()
+    }
+
+    fn set_segments(&self, plan: &Plan) {
+        *self.segments.lock().unwrap() = plan.view();
+    }
 }
 
 #[derive(Debug)]
@@ -417,6 +429,7 @@ async fn run_segmented(
     let _ = monitor.await;
     let _ = saver.await;
 
+    shared.progress.set_segments(&shared.plan.lock().unwrap());
     let complete = shared.plan.lock().unwrap().is_complete();
     if !complete || first_err.is_some() {
         checkpoint(&shared, &mut state, &paths.state).await?;
@@ -467,6 +480,7 @@ async fn monitor(shared: Arc<Shared>, stop: CancellationToken) {
             _ = stop.cancelled() => return,
             _ = tick.tick() => {}
         }
+        shared.progress.set_segments(&shared.plan.lock().unwrap());
         let mut judged = Vec::new();
         for (i, w) in shared.workers.iter().enumerate() {
             let bytes = w.bytes.load(Ordering::Relaxed);

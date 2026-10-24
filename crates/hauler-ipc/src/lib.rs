@@ -168,6 +168,25 @@ pub struct ProgressUpdate {
     pub connections: u32,
 }
 
+/// One piece of the file, for drawing a progress map.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Segment {
+    pub start: u64,
+    pub end: u64,
+    /// Bytes done, counted from `start`'s offset: the segment is complete
+    /// when `done == end`.
+    pub done: u64,
+    /// A connection is working on it right now.
+    pub active: bool,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SegmentMap {
+    pub size: Option<u64>,
+    /// In file order; empty when nothing is known yet.
+    pub segments: Vec<Segment>,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum Event {
@@ -231,6 +250,7 @@ pub mod method {
     pub const GET_SETTINGS: &str = "get_settings";
     pub const SET_SETTINGS: &str = "set_settings";
     pub const STATUS: &str = "status";
+    pub const SEGMENTS: &str = "segments";
     /// After the reply, the connection carries `event` notifications only.
     pub const SUBSCRIBE: &str = "subscribe";
     pub const EVENT: &str = "event";
@@ -403,6 +423,10 @@ impl Client {
 
     pub async fn status(&mut self) -> Result<Status, ClientError> {
         self.call(method::STATUS, Value::Null).await
+    }
+
+    pub async fn segments(&mut self, id: TaskId) -> Result<SegmentMap, ClientError> {
+        self.call(method::SEGMENTS, IdParams { id }).await
     }
 }
 

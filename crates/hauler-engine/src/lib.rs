@@ -25,7 +25,7 @@ pub use checksum::{Checksum, sha256_file};
 pub use download::{Options, Outcome, Progress, Task, client, prepare};
 pub use error::{Error, Result};
 pub use limit::Limiter;
-pub use probe::{Probe, probe};
+pub use probe::{Probe, probe, sanitize_filename};
 pub use reqwest::{Client, Url, header};
 pub use state::{ResumeState, SegmentState};
 pub use tokio_util::sync::CancellationToken;

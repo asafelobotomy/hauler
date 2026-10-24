@@ -33,6 +33,17 @@ impl Segment {
     }
 }
 
+/// A segment as a progress display sees it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SegmentView {
+    pub start: u64,
+    pub end: u64,
+    /// Received so far, from `start`.
+    pub done: u64,
+    /// A connection is working on it.
+    pub active: bool,
+}
+
 #[derive(Debug)]
 pub struct Plan {
     segments: Vec<Segment>,
@@ -118,6 +129,17 @@ impl Plan {
 
     pub fn written(&self) -> u64 {
         self.segments.iter().map(|s| s.written - s.start).sum()
+    }
+
+    /// Segments in file order, for drawing a progress map.
+    pub fn view(&self) -> Vec<SegmentView> {
+        let mut v: Vec<_> = self
+            .segments
+            .iter()
+            .map(|s| SegmentView { start: s.start, end: s.end, done: s.received, active: s.owner.is_some() })
+            .collect();
+        v.sort_by_key(|s| s.start);
+        v
     }
 
     pub fn snapshot(&self) -> Vec<SegmentState> {

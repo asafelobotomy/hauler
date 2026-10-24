@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Hauler
+GenericName=Download Manager
+Comment=Fast, resumable downloads over parallel connections
+Exec=hauler-desktop %U
+Icon=folder-download
+Terminal=false
+Categories=Network;FileTransfer;Qt;KDE;
+Keywords=download;manager;http;resume;accelerator;
+StartupWMClass=hauler
+SingleMainWindow=true

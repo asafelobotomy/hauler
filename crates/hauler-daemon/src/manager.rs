@@ -13,8 +13,8 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use hauler_engine::header::{HeaderMap, HeaderName, HeaderValue};
 use hauler_engine::{self as engine, CancellationToken, Checksum, Limiter, Outcome, Progress, Task};
 use hauler_ipc::{
-    AddParams, Event, NetworkState, ProgressUpdate, RpcError, Settings, SettingsPatch, Status, TaskId, TaskInfo,
-    TaskState,
+    AddParams, Event, NetworkState, ProgressUpdate, RpcError, Segment, SegmentMap, Settings, SettingsPatch, Status,
+    TaskId, TaskInfo, TaskState,
 };
 use tokio::sync::{Notify, broadcast, watch};
 use tokio::task::JoinHandle;
@@ -191,7 +191,8 @@ impl Manager {
             id: 0,
             url: url.to_string(),
             dir,
-            name: None,
+            // The requested name shows until the probe settles the real one.
+            name: p.filename.as_deref().map(engine::sanitize_filename).filter(|n| !n.is_empty()),
             state: if p.paused { TaskState::Paused } else { TaskState::Queued },
             size: None,
             received: 0,
@@ -387,6 +388,46 @@ impl Manager {
             speed: inner.tasks.values().filter(|e| e.run.is_some()).map(|e| e.info.speed).sum(),
             network: inner.network(),
         }
+    }
+
+    /// The segment map: live from the engine while running, from the resume
+    /// file while paused, one full segment once complete.
+    pub fn segments(&self, id: TaskId) -> Result<SegmentMap, RpcError> {
+        let (info, name, live) = {
+            let inner = self.inner.lock().unwrap();
+            let e = inner.tasks.get(&id).ok_or_else(|| RpcError::not_found(id))?;
+            let live = e.run.as_ref().and_then(|r| r.progress.as_ref()).map(|p| p.segments());
+            (e.info.clone(), e.spec.filename.clone(), live)
+        };
+        let size = info.size;
+        let whole = |done: u64| match size {
+            Some(s) if s > 0 => vec![Segment { start: 0, end: s, done: done.min(s), active: false }],
+            _ => Vec::new(),
+        };
+        let segments = match live {
+            Some(v) if !v.is_empty() => {
+                v.into_iter().map(|s| Segment { start: s.start, end: s.end, done: s.done, active: s.active }).collect()
+            }
+            _ if info.state == TaskState::Completed => whole(size.unwrap_or(0)),
+            _ => {
+                let saved = name
+                    .map(|n| Path::new(&info.dir).join(format!("{n}.hauler")))
+                    .and_then(|p| engine::ResumeState::load(&p).ok().flatten());
+                match saved {
+                    Some(state) => {
+                        let mut v: Vec<_> = state
+                            .segments
+                            .iter()
+                            .map(|s| Segment { start: s.start, end: s.end, done: s.written, active: false })
+                            .collect();
+                        v.sort_by_key(|s| s.start);
+                        v
+                    }
+                    None => whole(info.received),
+                }
+            }
+        };
+        Ok(SegmentMap { size, segments })
     }
 
     /// Report connectivity from the system's network monitor.

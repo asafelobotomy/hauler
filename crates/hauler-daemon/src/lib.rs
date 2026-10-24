@@ -7,6 +7,7 @@ use anyhow::Context;
 use tokio_util::sync::CancellationToken;
 use tracing::info;
 
+mod desktop;
 pub mod manager;
 mod rpc;
 mod socket;
@@ -63,6 +64,7 @@ pub async fn run(config: Config, shutdown: CancellationToken) -> anyhow::Result<
     if config.system_integration {
         tokio::spawn(system::inhibit_sleep(manager.active_watch(), shutdown.clone()));
         tokio::spawn(system::watch_network(manager.clone(), shutdown.clone()));
+        tokio::spawn(desktop::run(manager.clone(), shutdown.clone()));
     }
     let scheduler = tokio::spawn(manager.clone().run(shutdown.clone()));
     rpc::serve(listener, manager.clone(), shutdown.clone()).await;

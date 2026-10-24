@@ -131,6 +131,7 @@ async fn call(m: &Manager, method: &str, params: Value) -> Result<Value, RpcErro
         method::GET_SETTINGS => ok(Ok(m.settings())),
         method::SET_SETTINGS => ok(m.set_settings(parse::<SettingsPatch>(params)?)),
         method::STATUS => ok(Ok(m.status())),
+        method::SEGMENTS => ok(m.segments(parse::<IdParams>(params)?.id)),
         method::SUBSCRIBE => Ok(Value::Bool(true)),
         other => Err(RpcError::new(RpcError::METHOD_NOT_FOUND, format!("unknown method {other}"))),
     }

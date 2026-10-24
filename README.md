@@ -2,7 +2,7 @@
 
 Fast, resumable downloads over parallel connections. Linux first.
 
-Status: Phase 0 (engine and CLI) and Phase 1 (daemon, API and queue) are done. The desktop UI and browser extension come next.
+Status: Phase 0 (engine and CLI), Phase 1 (daemon, API and queue) and Phase 2 (desktop app) are done. The browser extension comes next.
 
 ## Install for your user
 
@@ -10,7 +10,20 @@ Status: Phase 0 (engine and CLI) and Phase 1 (daemon, API and queue) are done. T
 scripts/install-user.sh
 ```
 
-This builds release binaries into `~/.local/bin` and installs systemd user units. `hauler.socket` starts `haulerd` the first time a client connects.
+This builds release binaries into `~/.local/bin`, installs the systemd user units and adds Hauler to the app menu. `hauler.socket` starts `haulerd` the first time a client connects.
+
+Building the desktop app needs Qt 6 (base and declarative), Kirigami, KItemModels and qqc2-desktop-style. On Arch and Manjaro, all of these come with Plasma.
+
+## Desktop app
+
+`hauler-desktop` is a Kirigami window onto the daemon. Closing it keeps downloads running; downloads also show up in Plasma's notification area without it.
+
+- **List.** Shows every download with progress, speed, time left and connections. Filters are All, Active and Finished. Each row has pause, resume, open, open folder and remove; removing asks first, with an option to delete the file.
+- **Details.** Shows a live segment map of which byte ranges are done and which are being fetched. The speed limit and priority can be changed here.
+- **Adding.** Several links at once, folder, file name, connections, speed limit, priority, and "add paused". Ctrl+N opens the dialog, Ctrl+V pastes links, and links can be dropped on the window. `hauler-desktop <url>…` opens the dialog with them filled in.
+- **Settings.** Downloads at once, connections, total speed limit, folder, and whether to pause on metered connections.
+- **Tray.** Click to show or hide the window. The menu has pause all, resume all and quit. `--minimized` starts in the tray.
+- **Plasma.** The daemon reports each download to Plasma's job tracker, so progress shows in the notification area. Pause, resume and cancel work from there; cancel removes the download and its partial file. Without a job tracker (GNOME and others), it sends a notification when a download finishes, with Open and Show in Folder actions.
 
 ## Usage
 
@@ -81,6 +94,7 @@ With every connection equal, both tools are limited by the server. With uneven c
 | `crates/hauler-ipc` | API types and the async client for the daemon socket |
 | `crates/hauler-daemon` | `haulerd`: queue, scheduler, SQLite store, RPC server, D-Bus integration |
 | `crates/hauler-cli` | The `hauler` command |
+| `crates/hauler-desktop` | `hauler-desktop`: Kirigami UI with a cxx-qt bridge to the daemon |
 | `crates/hauler-testserver` | A throttled HTTP server with Range/ETag support, for tests and benchmarks |
 
 ## Testing
@@ -89,6 +103,14 @@ With every connection equal, both tools are limited by the server. With uneven c
 cargo test
 scripts/bench.sh 1024 8192 3 16    # size MiB, KiB/s per connection, slow every Nth, connections
 ```
+
+To capture the desktop app's main view, a details dialog, the add dialog and settings without showing a window:
+
+```sh
+QT_QPA_PLATFORM=offscreen HAULER_DESKTOP_DEMO=/tmp/shot target/debug/hauler-desktop   # writes /tmp/shot-1.png … -4.png
+```
+
+Offscreen, the Plasma style does not draw progress bars; on screen it does.
 
 The tests cover:
 - byte-exact downloads and checksum checks
