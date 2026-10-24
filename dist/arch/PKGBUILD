@@ -5,7 +5,7 @@
 # An AUR package would use the same steps with a release tarball as source.
 
 pkgname=hauler
-pkgver=0.1.1
+pkgver=0.1.2
 pkgrel=1
 pkgdesc='Fast, resumable download manager: segmented engine, systemd daemon and Kirigami app'
 arch=('x86_64')
