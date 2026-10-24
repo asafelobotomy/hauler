@@ -49,7 +49,8 @@ jobs:
           apt-get install -y --no-install-recommends \
             build-essential cmake curl ca-certificates git file patchelf pkg-config \
             qmake6 qt6-base-dev qt6-base-dev-tools qt6-declarative-dev qt6-declarative-dev-tools \
-            qt6-wayland qt6-qpa-plugins libqt6svg6 breeze-icon-theme \
+            qt6-wayland qt6-qpa-plugins libqt6svg6 qt6-svg-plugins qt6-xdgdesktopportal-platformtheme \
+            breeze-icon-theme \
             qml6-module-org-kde-kirigami qml6-module-org-kde-kitemmodels qml6-module-org-kde-desktop \
             qml6-module-qt-labs-platform qml6-module-qtquick qml6-module-qtquick-controls \
             qml6-module-qtquick-dialogs qml6-module-qtquick-layouts qml6-module-qtquick-templates \
@@ -75,7 +76,8 @@ jobs:
       - name: Smoke test (headless)
         run: |
           app=$(ls target/appimage/Hauler-*-x86_64.AppImage)
-          export APPIMAGE_EXTRACT_AND_RUN=1 QT_QPA_PLATFORM=offscreen
+          # No FUSE, no display and no GPU in the container.
+          export APPIMAGE_EXTRACT_AND_RUN=1 QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software
           export XDG_STATE_HOME=$RUNNER_TEMP/state XDG_RUNTIME_DIR=$RUNNER_TEMP/run HAULER_DESKTOP_DEMO=$RUNNER_TEMP/shot
           mkdir -p "$XDG_RUNTIME_DIR" && chmod 700 "$XDG_RUNTIME_DIR"
           timeout 120 "$app"
@@ -129,8 +131,11 @@ jobs:
           VERSION: ${{ needs.version.outputs.version }}
         run: scripts/build-static.sh
       - name: Smoke test
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
         run: |
-          dir=$(ls -d target/static/hauler-*-x86_64-linux-musl)
+          dir=target/static/hauler-$VERSION-x86_64-linux-musl
+          file "$dir/hauler" "$dir/haulerd"
           "$dir/hauler" --version
           "$dir/haulerd" --version
       - uses: actions/upload-artifact@v4

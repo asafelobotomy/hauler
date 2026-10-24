@@ -21,7 +21,9 @@ done
 
 cargo build --release -p hauler-desktop -p hauler-daemon -p hauler-cli
 
-rm -rf "$APPDIR" "$OUT/qml-extra"
+# Start clean: a restored build cache, or an earlier build, may hold other
+# versions' output.
+rm -rf "$OUT"
 mkdir -p "$APPDIR/usr/bin" "$OUT/qml-extra"
 install -m755 target/release/hauler-desktop target/release/haulerd target/release/hauler "$APPDIR/usr/bin/"
 

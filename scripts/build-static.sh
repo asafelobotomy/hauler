@@ -17,7 +17,8 @@ STAGE=$OUT/$NAME
 export CC_x86_64_unknown_linux_musl=${CC_x86_64_unknown_linux_musl:-musl-gcc}
 cargo build --release --locked --target "$TARGET" -p hauler-cli -p hauler-daemon
 
-rm -rf "$STAGE"
+# Start clean: a restored build cache may hold earlier versions' output.
+rm -rf "$OUT"
 mkdir -p "$STAGE/systemd"
 install -m755 "target/$TARGET/release/hauler" "target/$TARGET/release/haulerd" "$STAGE/"
 install -m644 dist/systemd/hauler.socket "$STAGE/systemd/"
