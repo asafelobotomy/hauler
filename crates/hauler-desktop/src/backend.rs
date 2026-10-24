@@ -252,7 +252,27 @@ async fn connect() -> Result<(Client, Events), ClientError> {
 fn spawn_daemon() {
     let sibling = std::env::current_exe().ok().and_then(|p| p.parent().map(|d| d.join("haulerd")));
     let program = sibling.filter(|p| p.exists()).unwrap_or_else(|| PathBuf::from("haulerd"));
-    match std::process::Command::new(&program).stdin(std::process::Stdio::null()).spawn() {
+    let mut command = std::process::Command::new(&program);
+    command.stdin(std::process::Stdio::null());
+    // If this app dies without stopping it (a crash, a kill), the kernel
+    // sends the daemon SIGTERM so it saves progress and exits instead of
+    // running on orphaned, possibly from an unmounted AppImage.
+    // SAFETY: only async-signal-safe calls between fork and exec.
+    unsafe {
+        use std::os::unix::process::CommandExt;
+        let parent = libc::getpid();
+        command.pre_exec(move || {
+            if libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGTERM) != 0 {
+                return Err(std::io::Error::last_os_error());
+            }
+            // The parent may have died before prctl took effect.
+            if libc::getppid() != parent {
+                libc::raise(libc::SIGTERM);
+            }
+            Ok(())
+        });
+    }
+    match command.spawn() {
         Ok(mut child) => {
             let pid = child.id();
             let reaper = std::thread::spawn(move || {

@@ -40,13 +40,20 @@ import org.kde.desktop
 Item {}
 EOF
 
-# Kirigami's desktop platform plugin gives the app the system colours and
-# icon theme. It is loaded at runtime, so copy it in and let linuxdeploy
-# bring its libraries.
-platform_plugin=$APPDIR/usr/plugins/kf6/kirigami/platform/org.kde.desktop.so
-install -Dm644 "$QT_PLUGINS/kf6/kirigami/platform/org.kde.desktop.so" "$platform_plugin"
-# Find its libraries in the bundle, like the plugins linuxdeploy deploys.
-patchelf --set-rpath '$ORIGIN/../../../../lib:$ORIGIN' "$platform_plugin"
+# Plugins Qt loads at runtime that linuxdeploy-plugin-qt does not deploy:
+#  - Kirigami's desktop platform plugin: the system colours and icon theme.
+#  - Wayland's EGL client integration: without it the window cannot get an
+#    OpenGL surface on Wayland and Qt Quick aborts at startup.
+extra_plugins=(
+    kf6/kirigami/platform/org.kde.desktop.so
+    wayland-graphics-integration-client/libqt-plugin-wayland-egl.so
+)
+for plugin in "${extra_plugins[@]}"; do
+    install -Dm644 "$QT_PLUGINS/$plugin" "$APPDIR/usr/plugins/$plugin"
+    # Point it at the bundled libraries, like the plugins linuxdeploy deploys.
+    up=$(dirname "$plugin" | sed 's|[^/]*|..|g')
+    patchelf --set-rpath "\$ORIGIN/$up/../lib:\$ORIGIN" "$APPDIR/usr/plugins/$plugin"
+done
 
 version=$(cargo pkgid -p hauler-desktop | sed 's/.*[#@]//')-$(git rev-parse --short HEAD)
 export QMAKE=qmake6
@@ -67,9 +74,9 @@ linuxdeploy-x86_64.AppImage \
     --executable Hauler.AppDir/usr/bin/hauler-desktop \
     --executable Hauler.AppDir/usr/bin/haulerd \
     --executable Hauler.AppDir/usr/bin/hauler \
-    --deploy-deps-only Hauler.AppDir/usr/plugins/kf6/kirigami/platform/org.kde.desktop.so \
+    $(printf -- '--deploy-deps-only Hauler.AppDir/usr/plugins/%s ' "${extra_plugins[@]}") \
     --desktop-file hauler.desktop \
     --icon-file hauler.svg \
     --plugin qt \
     --output appimage
-ls -la "$PWD"/Hauler-*.AppImage
+ls -la "$PWD/Hauler-$version-x86_64.AppImage"
