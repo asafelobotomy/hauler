@@ -6,4 +6,4 @@ members = ["crates/hauler-engine", "crates/hauler-cli", "crates/hauler-testserve
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.88"
-repository = "https://github.com/OWNER/hauler"
+repository = "https://github.com/asafelobotomy/hauler"

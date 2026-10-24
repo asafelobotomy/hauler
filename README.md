@@ -122,3 +122,9 @@ The tests cover:
 - pause, resume and restarting the daemon mid-download
 - priority order and the global speed limit
 - API error handling
+
+## Licence
+
+The reusable libraries are dual-licensed MIT OR Apache-2.0, at your option, so other projects can embed them: `hauler-engine`, `hauler-ipc` and `hauler-testserver` ([LICENSE-MIT](LICENSE-MIT), [LICENSE-APACHE](LICENSE-APACHE)).
+
+The applications are GPL-3.0-or-later: `haulerd` (`hauler-daemon`), the `hauler` CLI (`hauler-cli`) and the desktop app (`hauler-desktop`) ([COPYING](COPYING)).

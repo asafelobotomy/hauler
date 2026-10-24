@@ -1,7 +1,10 @@
 [package]
 name = "hauler-cli"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+license = "GPL-3.0-or-later"
 
 [[bin]]
 name = "hauler"
