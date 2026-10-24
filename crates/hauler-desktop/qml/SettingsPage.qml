@@ -29,7 +29,40 @@ Kirigami.ScrollablePage {
         }
     ]
 
+    // Grey help text under a setting.
+    component Hint: QQC2.Label {
+        Layout.fillWidth: true
+        Layout.maximumWidth: Kirigami.Units.gridUnit * 20
+        font: Kirigami.Theme.smallFont
+        color: Kirigami.Theme.disabledTextColor
+        wrapMode: Text.Wrap
+    }
+
     Kirigami.FormLayout {
+        Kirigami.Separator {
+            Kirigami.FormData.isSection: true
+            Kirigami.FormData.label: qsTr("Downloads")
+        }
+        RowLayout {
+            Kirigami.FormData.label: qsTr("Save to:")
+            Layout.fillWidth: true
+
+            QQC2.TextField {
+                id: dirField
+
+                Layout.fillWidth: true
+                Layout.preferredWidth: Kirigami.Units.gridUnit * 14
+                text: page.settings.download_dir
+            }
+            QQC2.Button {
+                icon.name: "document-open-folder"
+                text: qsTr("Browse…")
+                display: page.width < Kirigami.Units.gridUnit * 26 ? QQC2.AbstractButton.IconOnly : QQC2.AbstractButton.TextBesideIcon
+                QQC2.ToolTip.text: text
+                QQC2.ToolTip.visible: hovered && display === QQC2.AbstractButton.IconOnly
+                onClicked: folderDialog.open()
+            }
+        }
         QQC2.SpinBox {
             id: maxActive
 
@@ -38,6 +71,14 @@ Kirigami.ScrollablePage {
             to: 50
             value: page.settings.max_active
         }
+        Hint {
+            text: qsTr("Others wait in the queue, highest priority first.")
+        }
+
+        Kirigami.Separator {
+            Kirigami.FormData.isSection: true
+            Kirigami.FormData.label: qsTr("Speed")
+        }
         QQC2.SpinBox {
             id: connections
 
@@ -45,6 +86,9 @@ Kirigami.ScrollablePage {
             from: 1
             to: 32
             value: page.settings.connections
+        }
+        Hint {
+            text: qsTr("More connections are often faster. If a server turns some away, the rest carry on.")
         }
         QQC2.SpinBox {
             id: limit
@@ -58,22 +102,13 @@ Kirigami.ScrollablePage {
             textFromValue: v => v === 0 ? qsTr("None") : qsTr("%1 KiB/s").arg(v)
             valueFromText: t => parseInt(t) || 0
         }
-        RowLayout {
-            Kirigami.FormData.label: qsTr("Download folder:")
-            Layout.fillWidth: true
+        Hint {
+            text: qsTr("Shared by all downloads. Each download can have its own limit as well.")
+        }
 
-            QQC2.TextField {
-                id: dirField
-
-                Layout.fillWidth: true
-                Layout.minimumWidth: Kirigami.Units.gridUnit * 14
-                text: page.settings.download_dir
-            }
-            QQC2.Button {
-                icon.name: "document-open-folder"
-                text: qsTr("Browse…")
-                onClicked: folderDialog.open()
-            }
+        Kirigami.Separator {
+            Kirigami.FormData.isSection: true
+            Kirigami.FormData.label: qsTr("Network")
         }
         QQC2.Switch {
             id: metered
@@ -81,6 +116,9 @@ Kirigami.ScrollablePage {
             Kirigami.FormData.label: qsTr("Metered connections:")
             text: qsTr("Pause downloads")
             checked: page.settings.pause_on_metered
+        }
+        Hint {
+            text: qsTr("Downloads continue by themselves once you are on an unmetered network again.")
         }
     }
 

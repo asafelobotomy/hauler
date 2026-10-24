@@ -81,9 +81,15 @@ Kirigami.ScrollablePage {
             Layout.fillWidth: true
             onCurrentIndexChanged: proxy.invalidateFilter()
 
-            QQC2.TabButton { text: qsTr("All") }
-            QQC2.TabButton { text: qsTr("Active") }
-            QQC2.TabButton { text: qsTr("Finished") }
+            QQC2.TabButton { text: page.model.count > 0 ? qsTr("All (%1)").arg(page.model.count) : qsTr("All") }
+            QQC2.TabButton {
+                readonly property int n: page.model.count - page.model.completedCount
+                text: n > 0 ? qsTr("Active (%1)").arg(n) : qsTr("Active")
+            }
+            QQC2.TabButton {
+                readonly property int n: page.model.completedCount + page.model.failedCount
+                text: n > 0 ? qsTr("Finished (%1)").arg(n) : qsTr("Finished")
+            }
         }
     }
 
@@ -116,45 +122,86 @@ Kirigami.ScrollablePage {
             anchors.centerIn: parent
             width: parent.width - Kirigami.Units.gridUnit * 4
             visible: list.count === 0
-            icon.name: page.connected ? "folder-download" : "network-disconnect"
+            type: page.connected && filter.currentIndex === 0 ? Kirigami.PlaceholderMessage.Actionable : Kirigami.PlaceholderMessage.Informational
+            icon.name: !page.connected ? "network-connect"
+                : filter.currentIndex === 1 ? "media-playback-pause"
+                : filter.currentIndex === 2 ? "emblem-success"
+                : "folder-download"
             text: !page.connected ? qsTr("Connecting to haulerd…")
-                : filter.currentIndex === 0 ? qsTr("No downloads yet")
-                : qsTr("Nothing here")
-            explanation: page.connected && filter.currentIndex === 0
-                ? qsTr("Paste a link with Ctrl+V, drop one here, or press Ctrl+N.")
-                : ""
+                : filter.currentIndex === 1 ? qsTr("Nothing downloading")
+                : filter.currentIndex === 2 ? qsTr("Nothing finished yet")
+                : qsTr("No downloads yet")
+            explanation: !page.connected ? qsTr("The download service starts by itself. Downloads already running carry on.")
+                : filter.currentIndex === 1 ? qsTr("Downloads in progress, queued or paused show up here.")
+                : filter.currentIndex === 2 ? qsTr("Finished and failed downloads show up here.")
+                : qsTr("Paste a link with Ctrl+V, drop one on this window, or press Ctrl+N.")
             helpfulAction: page.connected && filter.currentIndex === 0 ? addAction : null
 
             Kirigami.Action {
                 id: addAction
 
                 icon.name: "list-add"
-                text: qsTr("Add Download")
+                text: qsTr("Add Download…")
                 onTriggered: page.addRequested()
+            }
+
+            QQC2.BusyIndicator {
+                Layout.alignment: Qt.AlignHCenter
+                visible: !page.connected
+                running: visible
             }
         }
     }
 
     footer: QQC2.ToolBar {
-        RowLayout {
-            anchors.fill: parent
+        position: QQC2.ToolBar.Footer
 
+        component Stat: RowLayout {
+            property alias icon: statIcon.source
+            property alias text: statLabel.text
+            property alias color: statLabel.color
+
+            spacing: Kirigami.Units.smallSpacing
+            Layout.fillWidth: false
+
+            Kirigami.Icon {
+                id: statIcon
+
+                Layout.preferredWidth: Kirigami.Units.iconSizes.small
+                Layout.preferredHeight: Kirigami.Units.iconSizes.small
+            }
             QQC2.Label {
+                id: statLabel
+
                 Layout.fillWidth: true
-                text: !page.connected ? qsTr("Not connected to haulerd")
-                    : page.runningCount === 0 ? qsTr("Idle")
-                    : qsTr("%n downloading", "", page.runningCount)
+                font.features: { "tnum": 1 }
                 elide: Text.ElideRight
             }
-            QQC2.Label {
-                visible: page.runningCount > 0
-                text: Fmt.speed(page.totalSpeed)
-                font.features: { "tnum": 1 }
+        }
+
+        RowLayout {
+            anchors.fill: parent
+            spacing: Kirigami.Units.largeSpacing
+
+            Stat {
+                Layout.fillWidth: true
+                icon: !page.connected ? "network-disconnect" : page.runningCount > 0 ? "download" : "media-playback-pause"
+                text: !page.connected ? qsTr("Not connected to haulerd")
+                    : page.runningCount > 0 ? qsTr("%n downloading", "", page.runningCount)
+                    : page.model.count > page.model.completedCount + page.model.failedCount ? qsTr("Idle")
+                    : qsTr("All done")
             }
-            QQC2.Label {
+            Stat {
+                visible: page.runningCount > 0
+                icon: "go-down"
+                text: Fmt.speed(page.totalSpeed)
+            }
+            Stat {
                 readonly property int limit: root.settings ? root.settings.global_limit : 0
-                visible: limit > 0
-                text: qsTr("limit %1").arg(Fmt.speed(limit))
+
+                visible: page.connected && limit > 0
+                icon: "speedometer"
+                text: qsTr("Limit %1").arg(Fmt.speed(limit))
                 color: Kirigami.Theme.neutralTextColor
             }
         }

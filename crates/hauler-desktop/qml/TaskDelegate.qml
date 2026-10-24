@@ -24,120 +24,276 @@ QQC2.ItemDelegate {
     readonly property string displayName: fileName || url
     readonly property real fraction: size > 0 ? Math.min(1, received / size) : 0
     readonly property string path: dir + "/" + fileName
+    // Narrow rows fold the secondary buttons into a menu and say less.
+    readonly property bool compact: width < Kirigami.Units.gridUnit * 26
+    readonly property bool wide: width >= Kirigami.Units.gridUnit * 36
 
     signal detailsRequested(int taskId)
 
     width: ListView.view.width
     onClicked: detailsRequested(taskId)
 
+    TaskState {
+        id: taskState
+
+        status: item.status
+        speed: item.speed
+        received: item.received
+    }
+
+    function amountText() {
+        if (size <= 0)
+            return Fmt.bytes(received);
+        return compact ? Fmt.bytes(received) : qsTr("%1 of %2").arg(Fmt.bytes(received)).arg(Fmt.bytes(size));
+    }
+
+    // The grey part of the status line, after the coloured state word.
     function detailText() {
-        const amount = size > 0 ? qsTr("%1 of %2").arg(Fmt.bytes(received)).arg(Fmt.bytes(size)) : Fmt.bytes(received);
+        const parts = [];
         switch (status) {
-        case "running": {
-            const parts = [amount, Fmt.speed(speed)];
-            if (size > 0 && speed > 0)
-                parts.push(qsTr("%1 left").arg(Fmt.duration((size - received) / speed)));
-            parts.push(qsTr("%n connection(s)", "", connections));
-            return parts.join(" · ");
-        }
+        case "running":
+            if (taskState.stalled) {
+                if (received > 0)
+                    parts.push(amountText());
+                break;
+            }
+            if (!compact || size <= 0)
+                parts.push(amountText());
+            parts.push(Fmt.speed(speed));
+            if (size > 0)
+                parts.push(qsTr("%1 left").arg(Fmt.eta((size - received) / speed)));
+            if (wide)
+                parts.push(connections === 1 ? qsTr("1 connection") : qsTr("%1 connections").arg(connections));
+            break;
         case "queued":
-            return qsTr("Queued") + (received > 0 ? " · " + amount : "");
         case "paused":
-            return qsTr("Paused") + (received > 0 ? " · " + amount : "") + (resumable ? "" : " · " + qsTr("will restart"));
         case "waiting":
-            return qsTr("Waiting for the network") + " · " + amount;
+            if (received > 0)
+                parts.push(amountText());
+            if (status === "paused" && !resumable)
+                parts.push(qsTr("will restart"));
+            break;
         case "completed":
-            return Fmt.bytes(size > 0 ? size : received);
+            parts.push(Fmt.bytes(size > 0 ? size : received));
+            if (!compact)
+                parts.push(Fmt.host(url));
+            break;
         case "failed":
-            return qsTr("Failed: %1").arg(error);
+            parts.push(error);
+            break;
         }
-        return "";
+        return parts.join(" · ");
+    }
+
+    // The one button every row shows: what you most likely want next.
+    readonly property var primary: status === "completed" ? openAction
+        : status === "paused" || status === "failed" ? resumeAction
+        : pauseAction
+
+    Kirigami.Action {
+        id: pauseAction
+
+        icon.name: "media-playback-pause"
+        text: qsTr("Pause")
+        visible: item.status === "running" || item.status === "queued" || item.status === "waiting"
+        onTriggered: item.backend.pause(item.taskId)
+    }
+    Kirigami.Action {
+        id: resumeAction
+
+        icon.name: item.status === "failed" ? "view-refresh" : "media-playback-start"
+        text: item.status === "failed" ? qsTr("Retry") : qsTr("Resume")
+        visible: item.status === "paused" || item.status === "failed"
+        onTriggered: item.backend.resume(item.taskId)
+    }
+    Kirigami.Action {
+        id: openAction
+
+        icon.name: "document-open"
+        text: qsTr("Open")
+        visible: item.status === "completed"
+        onTriggered: Qt.openUrlExternally(Fmt.fileUrl(item.path))
+    }
+    Kirigami.Action {
+        id: openFolderAction
+
+        icon.name: "document-open-folder"
+        text: qsTr("Open Folder")
+        onTriggered: Qt.openUrlExternally(Fmt.fileUrl(item.dir))
+    }
+    Kirigami.Action {
+        id: removeAction
+
+        icon.name: "edit-delete"
+        text: qsTr("Remove…")
+        onTriggered: confirmRemove.open()
+    }
+
+    TapHandler {
+        acceptedButtons: Qt.RightButton
+        onTapped: menu.popup()
+    }
+    TapHandler {
+        acceptedDevices: PointerDevice.TouchScreen
+        onLongPressed: menu.popup()
     }
 
     contentItem: RowLayout {
         spacing: Kirigami.Units.largeSpacing
 
-        Kirigami.Icon {
-            Layout.preferredWidth: Kirigami.Units.iconSizes.medium
-            Layout.preferredHeight: Kirigami.Units.iconSizes.medium
-            source: item.status === "failed" ? "dialog-error"
-                : item.status === "completed" ? "document-save"
-                : "folder-download"
-            color: item.status === "failed" ? Kirigami.Theme.negativeTextColor : Kirigami.Theme.textColor
+        FileIcon {
+            Layout.alignment: Qt.AlignVCenter
+            size: Kirigami.Units.iconSizes.medium
+            source: item.fileName ? item.backend.iconForFile(item.fileName) : "folder-download"
+            emblem: taskState.emblem
         }
 
         ColumnLayout {
             Layout.fillWidth: true
             spacing: Kirigami.Units.smallSpacing
 
-            QQC2.Label {
+            RowLayout {
                 Layout.fillWidth: true
-                text: item.displayName
-                elide: Text.ElideMiddle
-                font.weight: Font.DemiBold
+                spacing: Kirigami.Units.smallSpacing
+
+                QQC2.Label {
+                    Layout.fillWidth: true
+                    text: item.displayName
+                    elide: Text.ElideMiddle
+                    font.weight: Font.DemiBold
+                }
+                QQC2.Label {
+                    visible: item.size > 0 && item.status !== "completed" && item.status !== "failed"
+                    text: Fmt.percent(item.fraction)
+                    font.features: { "tnum": 1 }
+                    color: Kirigami.Theme.disabledTextColor
+                }
             }
 
-            QQC2.ProgressBar {
+            ProgressStrip {
                 Layout.fillWidth: true
-                visible: item.status === "running" || (item.status !== "completed" && item.received > 0)
-                from: 0
-                to: 1
+                visible: item.size > 0 && item.status !== "completed" && (item.status === "running" || item.received > 0)
                 value: item.fraction
-                indeterminate: item.status === "running" && item.size <= 0
+                fillColor: taskState.barColor
             }
 
-            QQC2.Label {
+            RowLayout {
                 Layout.fillWidth: true
-                text: item.detailText()
-                elide: Text.ElideRight
-                font: Kirigami.Theme.smallFont
-                color: item.status === "failed" ? Kirigami.Theme.negativeTextColor : Kirigami.Theme.disabledTextColor
+                spacing: Kirigami.Units.smallSpacing
+
+                QQC2.Label {
+                    text: taskState.label
+                    font: Kirigami.Theme.smallFont
+                    color: taskState.color
+                }
+                QQC2.Label {
+                    id: details
+
+                    Layout.fillWidth: true
+                    readonly property string detail: item.detailText()
+
+                    visible: detail !== ""
+                    text: "· " + detail
+                    elide: Text.ElideRight
+                    font.pointSize: Kirigami.Theme.smallFont.pointSize
+                    font.features: { "tnum": 1 }
+                    color: item.status === "failed" ? Kirigami.Theme.negativeTextColor : Kirigami.Theme.disabledTextColor
+                    opacity: item.status === "failed" ? 0.8 : 1
+
+                    QQC2.ToolTip.text: item.error
+                    QQC2.ToolTip.visible: item.status === "failed" && truncated && hoverHandler.hovered
+                    QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
+
+                    HoverHandler {
+                        id: hoverHandler
+                    }
+                }
+                Item {
+                    visible: !details.visible
+                    Layout.fillWidth: true
+                }
             }
         }
 
-        QQC2.ToolButton {
-            visible: item.status === "running" || item.status === "queued" || item.status === "waiting"
-            icon.name: "media-playback-pause"
-            text: qsTr("Pause")
-            display: QQC2.AbstractButton.IconOnly
-            QQC2.ToolTip.text: text
-            QQC2.ToolTip.visible: hovered
-            onClicked: item.backend.pause(item.taskId)
+        RowLayout {
+            Layout.alignment: Qt.AlignVCenter
+            spacing: 0
+
+            QQC2.ToolButton {
+                action: item.primary
+                display: QQC2.AbstractButton.IconOnly
+                QQC2.ToolTip.text: text
+                QQC2.ToolTip.visible: hovered
+                QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
+            }
+            QQC2.ToolButton {
+                visible: !item.compact && item.status === "completed"
+                action: openFolderAction
+                display: QQC2.AbstractButton.IconOnly
+                QQC2.ToolTip.text: text
+                QQC2.ToolTip.visible: hovered
+                QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
+            }
+            QQC2.ToolButton {
+                visible: !item.compact
+                icon.name: "edit-delete"
+                text: qsTr("Remove")
+                display: QQC2.AbstractButton.IconOnly
+                QQC2.ToolTip.text: text
+                QQC2.ToolTip.visible: hovered
+                QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
+                onClicked: confirmRemove.open()
+            }
+            QQC2.ToolButton {
+                id: overflow
+
+                visible: item.compact
+                icon.name: "overflow-menu"
+                text: qsTr("More")
+                display: QQC2.AbstractButton.IconOnly
+                down: menu.visible
+                QQC2.ToolTip.text: text
+                QQC2.ToolTip.visible: hovered && !menu.visible
+                QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
+                onPressed: menu.popup(overflow, 0, overflow.height)
+            }
         }
-        QQC2.ToolButton {
-            visible: item.status === "paused" || item.status === "failed"
-            icon.name: item.status === "failed" ? "view-refresh" : "media-playback-start"
-            text: item.status === "failed" ? qsTr("Retry") : qsTr("Resume")
-            display: QQC2.AbstractButton.IconOnly
-            QQC2.ToolTip.text: text
-            QQC2.ToolTip.visible: hovered
-            onClicked: item.backend.resume(item.taskId)
+    }
+
+    QQC2.Menu {
+        id: menu
+
+        QQC2.MenuItem {
+            action: pauseAction
+            visible: pauseAction.visible
+            height: visible ? implicitHeight : 0
         }
-        QQC2.ToolButton {
-            visible: item.status === "completed"
-            icon.name: "document-open"
-            text: qsTr("Open")
-            display: QQC2.AbstractButton.IconOnly
-            QQC2.ToolTip.text: text
-            QQC2.ToolTip.visible: hovered
-            onClicked: Qt.openUrlExternally(Fmt.fileUrl(item.path))
+        QQC2.MenuItem {
+            action: resumeAction
+            visible: resumeAction.visible
+            height: visible ? implicitHeight : 0
         }
-        QQC2.ToolButton {
-            visible: item.status === "completed"
-            icon.name: "document-open-folder"
-            text: qsTr("Open Folder")
-            display: QQC2.AbstractButton.IconOnly
-            QQC2.ToolTip.text: text
-            QQC2.ToolTip.visible: hovered
-            onClicked: Qt.openUrlExternally(Fmt.fileUrl(item.dir))
+        QQC2.MenuItem {
+            action: openAction
+            visible: openAction.visible
+            height: visible ? implicitHeight : 0
         }
-        QQC2.ToolButton {
-            icon.name: "edit-delete-remove"
-            text: qsTr("Remove")
-            display: QQC2.AbstractButton.IconOnly
-            QQC2.ToolTip.text: text
-            QQC2.ToolTip.visible: hovered
-            onClicked: confirmRemove.open()
+        QQC2.MenuItem {
+            action: openFolderAction
+        }
+        QQC2.MenuItem {
+            icon.name: "documentinfo"
+            text: qsTr("Details")
+            onTriggered: item.detailsRequested(item.taskId)
+        }
+        QQC2.MenuItem {
+            icon.name: "edit-copy"
+            text: qsTr("Copy Link")
+            onTriggered: item.backend.copyText(item.url)
+        }
+        QQC2.MenuSeparator {}
+        QQC2.MenuItem {
+            action: removeAction
         }
     }
 
@@ -149,7 +305,7 @@ QQC2.ItemDelegate {
         subtitle: item.displayName
         standardButtons: QQC2.Dialog.Cancel
         customFooterActions: Kirigami.Action {
-            icon.name: "edit-delete-remove"
+            icon.name: "edit-delete"
             text: qsTr("Remove")
             onTriggered: {
                 item.backend.remove(item.taskId, deleteFiles.checked);

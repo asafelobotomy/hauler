@@ -62,7 +62,8 @@ Kirigami.ApplicationWindow {
     }
 
     // Development aid: with HAULER_DESKTOP_DEMO=<prefix>, save the main view,
-    // a details dialog, the add dialog and settings as <prefix>-1…4.png, then quit.
+    // a details dialog, the add dialog and settings as <prefix>-1…4.png, then
+    // the main view and details at a narrow width as -5 and -6, then quit.
     // Run with QT_QPA_PLATFORM=offscreen to keep it off the screen.
     Timer {
         property int step: 0
@@ -95,6 +96,14 @@ Kirigami.ApplicationWindow {
                 addDialog.close();
                 root.openSettings();
             } else if (step === 4) {
+                shot();
+                root.pageStack.pop();
+                root.width = root.minimumWidth;
+            } else if (step === 5) {
+                shot();
+                if (tasks.count > 0)
+                    root.pageStack.initialPage.showDetails(tasks.get(0).taskId);
+            } else if (step === 6) {
                 shot();
             } else {
                 root.quit();

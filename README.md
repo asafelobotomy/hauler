@@ -106,13 +106,13 @@ cargo test
 scripts/bench.sh 1024 8192 3 16    # size MiB, KiB/s per connection, slow every Nth, connections
 ```
 
-To capture the desktop app's main view, a details dialog, the add dialog and settings without showing a window:
+To capture the desktop app's main view, a details dialog, the add dialog and settings, then the main view and details at a narrow width, without showing a window:
 
 ```sh
-QT_QPA_PLATFORM=offscreen HAULER_DESKTOP_DEMO=/tmp/shot target/debug/hauler-desktop   # writes /tmp/shot-1.png … -4.png
+QT_QPA_PLATFORM=offscreen QT_QPA_PLATFORMTHEME=kde HAULER_DESKTOP_DEMO=/tmp/shot target/debug/hauler-desktop   # writes /tmp/shot-1.png … -6.png
 ```
 
-Offscreen, the Plasma style does not draw progress bars; on screen it does.
+`QT_QPA_PLATFORMTHEME=kde` gives offscreen shots Plasma's icons and colours. Offscreen, icons behind a dialog that covers them can show through; on screen they do not.
 
 The tests cover:
 - byte-exact downloads and checksum checks

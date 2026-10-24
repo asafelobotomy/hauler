@@ -10,5 +10,7 @@ pub mod ffi {
         fn hauler_new_application(version: &str) -> UniquePtr<QApplication>;
         fn hauler_exec(app: Pin<&mut QApplication>) -> i32;
         fn hauler_grab_window(path: &str) -> bool;
+        fn hauler_icon_for_file(name: &str) -> String;
+        fn hauler_copy_text(text: &str);
     }
 }

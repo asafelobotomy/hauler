@@ -8,6 +8,8 @@ ListModel {
     // Totals kept current by the functions below, so views never rescan the
     // whole model on every progress tick.
     property int runningCount: 0
+    property int completedCount: 0
+    property int failedCount: 0
     property real totalSpeed: 0
     // Bumped once per batch of changes, for bindings that re-read rows.
     property int changes: 0
@@ -41,15 +43,23 @@ ListModel {
 
     function recount() {
         let running = 0;
+        let completed = 0;
+        let failed = 0;
         let speed = 0;
         for (let i = 0; i < count; ++i) {
             const t = get(i);
             if (t.status === "running") {
                 running++;
                 speed += t.speed;
+            } else if (t.status === "completed") {
+                completed++;
+            } else if (t.status === "failed") {
+                failed++;
             }
         }
         runningCount = running;
+        completedCount = completed;
+        failedCount = failed;
         totalSpeed = speed;
     }
 

@@ -60,6 +60,11 @@ pub mod qobject {
         /// Save the window as a PNG (development aid).
         #[qinvokable]
         fn grab_window(self: &Backend, path: &QString) -> bool;
+        /// A themed icon name for a file, from its MIME type.
+        #[qinvokable]
+        fn icon_for_file(self: &Backend, name: &QString) -> QString;
+        #[qinvokable]
+        fn copy_text(self: &Backend, text: &QString);
 
         /// The full task list, after (re)connecting.
         #[qsignal]
@@ -188,6 +193,14 @@ impl Backend {
 
     fn grab_window(&self, path: &QString) -> bool {
         crate::app::ffi::hauler_grab_window(&path.to_string())
+    }
+
+    fn icon_for_file(&self, name: &QString) -> QString {
+        QString::from(&crate::app::ffi::hauler_icon_for_file(&name.to_string()))
+    }
+
+    fn copy_text(&self, text: &QString) {
+        crate::app::ffi::hauler_copy_text(&text.to_string());
     }
 }
 

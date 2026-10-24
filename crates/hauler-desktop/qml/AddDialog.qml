@@ -11,15 +11,17 @@ Kirigami.Dialog {
     property var settings: null
 
     readonly property var urls: urlField.text.split(/\s+/).filter(u => /^https?:\/\/\S+$/i.test(u))
+    readonly property int defaultConnections: settings ? settings.connections : 8
 
     function openWith(text) {
         urlField.text = (text || "").trim();
         nameField.text = "";
         dirField.text = settings ? settings.download_dir : "";
-        connections.value = settings ? settings.connections : 8;
+        connections.value = defaultConnections;
         limit.value = 0;
         priority.value = 0;
         paused.checked = false;
+        advanced.expanded = false;
         open();
         urlField.forceActiveFocus();
     }
@@ -60,74 +62,126 @@ Kirigami.Dialog {
         onTriggered: dialog.submit()
     }
 
-    Kirigami.FormLayout {
-        QQC2.TextArea {
-            id: urlField
+    ColumnLayout {
+        spacing: Kirigami.Units.smallSpacing
 
-            Kirigami.FormData.label: qsTr("Links:")
+        QQC2.ScrollView {
             Layout.fillWidth: true
-            Layout.minimumWidth: Kirigami.Units.gridUnit * 18
-            Layout.preferredHeight: Kirigami.Units.gridUnit * 4
-            placeholderText: qsTr("https://… (one per line)")
-            wrapMode: TextEdit.WrapAnywhere
+            Layout.minimumWidth: Kirigami.Units.gridUnit * 14
+            Layout.preferredHeight: Kirigami.Units.gridUnit * 5
+
+            QQC2.TextArea {
+                id: urlField
+
+                placeholderText: qsTr("Paste or drop links here, one per line")
+                wrapMode: TextEdit.WrapAnywhere
+            }
         }
-        QQC2.Label {
-            visible: urlField.text.length > 0 && dialog.urls.length === 0
-            text: qsTr("No http or https links found")
-            color: Kirigami.Theme.negativeTextColor
-        }
+
+        // What the text box holds, as the dialog reads it.
         RowLayout {
-            Kirigami.FormData.label: qsTr("Save to:")
             Layout.fillWidth: true
+            spacing: Kirigami.Units.smallSpacing
 
-            QQC2.TextField {
-                id: dirField
+            readonly property bool empty: urlField.text.trim() === ""
+            readonly property bool bad: !empty && dialog.urls.length === 0
 
+            Kirigami.Icon {
+                Layout.preferredWidth: Kirigami.Units.iconSizes.small
+                Layout.preferredHeight: Kirigami.Units.iconSizes.small
+                source: parent.empty ? "link" : parent.bad ? "dialog-warning" : "emblem-success"
+                opacity: parent.empty ? 0.6 : 1
+            }
+            QQC2.Label {
                 Layout.fillWidth: true
-            }
-            QQC2.Button {
-                icon.name: "document-open-folder"
-                text: qsTr("Browse…")
-                onClicked: folderDialog.open()
+                text: parent.empty ? qsTr("Only http and https links are downloaded")
+                    : parent.bad ? qsTr("No http or https links found")
+                    : dialog.urls.length === 1 ? qsTr("1 link found") : qsTr("%1 links found").arg(dialog.urls.length)
+                font: Kirigami.Theme.smallFont
+                color: parent.empty ? Kirigami.Theme.disabledTextColor
+                    : parent.bad ? Kirigami.Theme.negativeTextColor
+                    : Kirigami.Theme.positiveTextColor
+                elide: Text.ElideRight
             }
         }
-        QQC2.TextField {
-            id: nameField
 
-            Kirigami.FormData.label: qsTr("File name:")
+        Kirigami.FormLayout {
             Layout.fillWidth: true
-            enabled: dialog.urls.length <= 1
-            placeholderText: qsTr("From the server")
-        }
-        QQC2.SpinBox {
-            id: connections
 
-            Kirigami.FormData.label: qsTr("Connections:")
-            from: 1
-            to: 32
-        }
-        QQC2.SpinBox {
-            id: limit
+            RowLayout {
+                Kirigami.FormData.label: qsTr("Save to:")
+                Layout.fillWidth: true
 
-            Kirigami.FormData.label: qsTr("Speed limit:")
-            from: 0
-            to: 100000
-            stepSize: 64
-            editable: true
-            textFromValue: v => v === 0 ? qsTr("None") : qsTr("%1 KiB/s").arg(v)
-            valueFromText: t => parseInt(t) || 0
-        }
-        QQC2.SpinBox {
-            id: priority
+                QQC2.TextField {
+                    id: dirField
 
-            Kirigami.FormData.label: qsTr("Priority:")
-            from: -10
-            to: 10
-        }
-        QQC2.CheckBox {
-            id: paused
+                    Layout.fillWidth: true
+                    Layout.preferredWidth: Kirigami.Units.gridUnit * 10
+                }
+                QQC2.Button {
+                    icon.name: "document-open-folder"
+                    text: qsTr("Browse…")
+                    display: dialog.width < Kirigami.Units.gridUnit * 24 ? QQC2.AbstractButton.IconOnly : QQC2.AbstractButton.TextBesideIcon
+                    QQC2.ToolTip.text: text
+                    QQC2.ToolTip.visible: hovered && display === QQC2.AbstractButton.IconOnly
+                    onClicked: folderDialog.open()
+                }
+            }
+            QQC2.TextField {
+                id: nameField
 
-            text: qsTr("Add paused")
+                Kirigami.FormData.label: qsTr("File name:")
+                Layout.fillWidth: true
+                enabled: dialog.urls.length <= 1
+                placeholderText: dialog.urls.length > 1 ? qsTr("From the server, for each link") : qsTr("From the server")
+            }
+            QQC2.CheckBox {
+                id: paused
+
+                text: qsTr("Add paused")
+            }
+
+            QQC2.Button {
+                id: advanced
+
+                property bool expanded: false
+
+                flat: true
+                icon.name: expanded ? "arrow-down" : "arrow-right"
+                text: expanded ? qsTr("Fewer options") : qsTr("More options")
+                onClicked: expanded = !expanded
+            }
+
+            QQC2.SpinBox {
+                id: connections
+
+                visible: advanced.expanded
+                Kirigami.FormData.label: qsTr("Connections:")
+                from: 1
+                to: 32
+            }
+            QQC2.SpinBox {
+                id: limit
+
+                visible: advanced.expanded
+                Kirigami.FormData.label: qsTr("Speed limit:")
+                from: 0
+                to: 100000
+                stepSize: 64
+                editable: true
+                textFromValue: v => v === 0 ? qsTr("None") : qsTr("%1 KiB/s").arg(v)
+                valueFromText: t => parseInt(t) || 0
+            }
+            QQC2.SpinBox {
+                id: priority
+
+                visible: advanced.expanded
+                Kirigami.FormData.label: qsTr("Priority:")
+                from: -10
+                to: 10
+                textFromValue: v => v > 0 ? "+" + v : String(v)
+                valueFromText: t => parseInt(t) || 0
+            }
         }
     }
 
