@@ -170,6 +170,50 @@ async fn idle_connections_split_slow_segments() {
 }
 
 #[tokio::test]
+async fn a_connection_cap_keeps_the_connections_it_allows() {
+    let size = 8 * MIB;
+    // Like hosts that allow two downloads per client and send everything
+    // else to a "too many requests" page.
+    let server =
+        spawn(Config { size, bytes_per_sec: Some(4 * MIB), max_streams: Some(2), ..Config::default() }).await.unwrap();
+    let dir = tempdir("capped");
+    let task = prepare(client().unwrap(), &server.url(), &dir, opts()).await.unwrap();
+    let Outcome::Completed(path) = task.run(CancellationToken::new()).await.unwrap() else { panic!() };
+    assert_content(&path, size);
+    assert!(server.stats.refused.load(Ordering::SeqCst) > 0);
+}
+
+#[tokio::test]
+async fn being_sent_to_another_page_on_resume_keeps_the_progress() {
+    let size = 8 * MIB;
+    let server = spawn(Config { size, bytes_per_sec: Some(MIB), ..Config::default() }).await.unwrap();
+    let dir = tempdir("busy-resume");
+    let o = Options { connections: 4, filename: Some("file.bin".into()), ..opts() };
+    let task = prepare(client().unwrap(), &server.url(), &dir, o.clone()).await.unwrap();
+    let cancel = CancellationToken::new();
+    let stopper = cancel.clone();
+    tokio::spawn(async move {
+        tokio::time::sleep(Duration::from_millis(700)).await;
+        stopper.cancel();
+    });
+    assert!(matches!(task.run(cancel).await.unwrap(), Outcome::Paused));
+
+    let busy = format!("http://{}/busy.html", server.addr);
+    let redirect = spawn(Config { redirect_to: Some(busy), ..Config::default() }).await.unwrap();
+    let err = prepare(client().unwrap(), &redirect.url(), &dir, Options { max_retries: 0, ..o.clone() })
+        .await
+        .err()
+        .expect("a busy page must not replace the download");
+    assert!(matches!(err, Error::Refused(_)), "{err}");
+    assert_eq!(std::fs::metadata(dir.join("file.bin.part")).unwrap().len(), size);
+
+    let task = prepare(client().unwrap(), &server.url(), &dir, o).await.unwrap();
+    assert!(task.resumed_bytes() > 0);
+    let Outcome::Completed(path) = task.run(CancellationToken::new()).await.unwrap() else { panic!() };
+    assert_content(&path, size);
+}
+
+#[tokio::test]
 async fn existing_file_gets_a_new_name() {
     let server = spawn(Config { size: MIB, ..Config::default() }).await.unwrap();
     let dir = tempdir("rename");

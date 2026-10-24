@@ -27,7 +27,14 @@ impl Probe {
 }
 
 pub async fn probe(client: &Client, url: &str, headers: &HeaderMap) -> Result<Probe> {
-    let resp = client.get(url).headers(headers.clone()).header(header::RANGE, "bytes=0-0").send().await?;
+    let resp = client
+        .get(url)
+        .headers(headers.clone())
+        .header(header::RANGE, "bytes=0-0")
+        // A one-byte answer that takes this long is not coming.
+        .timeout(std::time::Duration::from_secs(30))
+        .send()
+        .await?;
     let status = resp.status();
     if !(status == StatusCode::OK || status == StatusCode::PARTIAL_CONTENT) {
         return Err(status_error(&resp));

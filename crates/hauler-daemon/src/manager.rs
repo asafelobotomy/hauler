@@ -5,11 +5,13 @@
 //! through [`Manager::on_prepared`] and [`Manager::on_finished`].
 
 use std::collections::BTreeMap;
+use std::panic::AssertUnwindSafe;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use futures_util::FutureExt;
 use hauler_engine::header::{HeaderMap, HeaderName, HeaderValue};
 use hauler_engine::{self as engine, CancellationToken, Checksum, Limiter, Outcome, Progress, Task};
 use hauler_ipc::{
@@ -18,7 +20,7 @@ use hauler_ipc::{
 };
 use tokio::sync::{Notify, broadcast, watch};
 use tokio::task::JoinHandle;
-use tracing::{info, warn};
+use tracing::{error, info, warn};
 
 use crate::store::{Store, TaskSpec};
 
@@ -546,10 +548,33 @@ impl Manager {
         id: TaskId,
         url: String,
         dir: PathBuf,
-        mut opts: engine::Options,
+        opts: engine::Options,
         cancel: CancellationToken,
     ) {
-        let result = loop {
+        // A panic would end this task silently and leave the download marked
+        // running forever; report it as a failure instead.
+        let attempt = self.clone().attempt(id, url, dir, opts, cancel);
+        let result = AssertUnwindSafe(attempt).catch_unwind().await.unwrap_or_else(|panic| {
+            let msg = panic
+                .downcast_ref::<&str>()
+                .map(|s| s.to_string())
+                .or_else(|| panic.downcast_ref::<String>().cloned())
+                .unwrap_or_else(|| "panic".into());
+            error!("download {id} crashed: {msg}");
+            Err(std::io::Error::other(format!("internal error: {msg}")).into())
+        });
+        self.on_finished(id, result);
+    }
+
+    async fn attempt(
+        self: Arc<Self>,
+        id: TaskId,
+        url: String,
+        dir: PathBuf,
+        mut opts: engine::Options,
+        cancel: CancellationToken,
+    ) -> engine::Result<Outcome> {
+        loop {
             let prepared = tokio::select! {
                 _ = cancel.cancelled() => break Ok(Outcome::Paused),
                 r = engine::prepare(self.client.clone(), &url, &dir, opts.clone()) => r,
@@ -566,8 +591,7 @@ impl Manager {
                 }
                 r => break r,
             }
-        };
-        self.on_finished(id, result);
+        }
     }
 
     fn on_prepared(&self, id: TaskId, task: &Task) {

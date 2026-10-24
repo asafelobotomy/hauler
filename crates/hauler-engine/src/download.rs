@@ -171,21 +171,34 @@ pub async fn prepare(client: Client, url: &str, dir: &Path, opts: Options) -> Re
     let part = part_path(&target);
     let state_path = state_path(&target);
 
+    let saved = if resume {
+        ResumeState::load(&state_path).unwrap_or_else(|e| {
+            warn!("ignoring resume state: {e}");
+            None
+        })
+    } else {
+        None
+    };
+    // Progress on disk, but the server now answers from another URL with a
+    // different file: more likely a "too many downloads" page than a new
+    // version. Wait rather than throw the progress away.
+    if let Some(saved) = &saved
+        && !saved.segments.is_empty()
+        && probe.final_url != saved.final_url
+        && !saved.matches(probe.size.unwrap_or(0), probe.etag.as_deref(), probe.last_modified.as_deref())
+    {
+        return Err(Error::Refused(probe.final_url));
+    }
+
     let mode = match probe.size {
         Some(size) if probe.ranges && size > 0 => {
             let mut plan = None;
-            if resume {
-                match ResumeState::load(&state_path) {
-                    Ok(Some(saved)) => {
-                        let part_ok = fs::metadata(&part).map(|m| m.len() == size).unwrap_or(false);
-                        if saved.matches(size, probe.etag.as_deref(), probe.last_modified.as_deref()) && part_ok {
-                            plan = Some(Plan::from_state(&saved.segments, opts.min_split));
-                        } else {
-                            info!("remote file changed or partial data missing; starting over");
-                        }
-                    }
-                    Ok(None) => {}
-                    Err(e) => warn!("ignoring resume state: {e}"),
+            if let Some(saved) = saved {
+                let part_ok = fs::metadata(&part).map(|m| m.len() == size).unwrap_or(false);
+                if saved.matches(size, probe.etag.as_deref(), probe.last_modified.as_deref()) && part_ok {
+                    plan = Some(Plan::from_state(&saved.segments, opts.min_split));
+                } else {
+                    info!("remote file changed or partial data missing; starting over");
                 }
             }
             let fresh = plan.is_none();
@@ -313,8 +326,11 @@ fn preallocate(file: &File, size: u64) -> std::io::Result<()> {
     file.set_len(size)
 }
 
+/// The longest a `Retry-After` from the server can make us wait.
+const MAX_RETRY_AFTER: Duration = Duration::from_secs(120);
+
 fn backoff(attempt: u32, hint: Option<Duration>) -> Duration {
-    hint.unwrap_or_else(|| {
+    hint.map(|h| h.min(MAX_RETRY_AFTER)).unwrap_or_else(|| {
         let base = Duration::from_millis(500) * 2u32.saturating_pow(attempt.saturating_sub(1).min(6));
         base.min(Duration::from_secs(30)).mul_f64(0.5 + fastrand::f64())
     })
@@ -593,6 +609,15 @@ async fn worker(id: usize, shared: Arc<Shared>) -> Result<()> {
                     if after > before {
                         failures = 0;
                     }
+                    // A server that caps connections per client turns away
+                    // the extra ones. While others still stream, leave the
+                    // segment to them instead of failing the download.
+                    if e.is_turned_away() && shared.progress.connections.load(Ordering::Relaxed) > 0 {
+                        info!("worker {id}: {e}; carrying on with fewer connections");
+                        shared.plan.lock().unwrap().release(seg);
+                        stat.segment.store(usize::MAX, Ordering::Relaxed);
+                        return Ok(());
+                    }
                     if e.is_retryable() && failures < shared.opts.max_retries {
                         failures += 1;
                         shared.progress.retries.fetch_add(1, Ordering::Relaxed);
@@ -638,10 +663,16 @@ async fn fetch(id: usize, seg: usize, shared: &Shared) -> Result<FetchEnd> {
     if let Some(v) = &shared.validator {
         req = req.header(header::IF_RANGE, v);
     }
+    let stall = shared.opts.stall_timeout;
     let resp = tokio::select! {
         _ = shared.stop.cancelled() => return Ok(FetchEnd::Stopped),
-        r = req.send() => r?,
+        r = tokio::time::timeout(stall, req.send()) => r.map_err(|_| Error::Stalled(stall))??,
     };
+    // Segment requests go straight to the probed URL, so any redirect means
+    // the server sent us away (often to an HTML "too many requests" page).
+    if resp.url().as_str() != shared.url {
+        return Err(Error::Refused(resp.url().to_string()));
+    }
     match resp.status() {
         StatusCode::PARTIAL_CONTENT => {}
         // A full body or an unsatisfiable range means the file is not the one

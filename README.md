@@ -59,7 +59,8 @@ Ctrl-C pauses `get`; running the same command again resumes it. Set `HAULER_LOG=
 - **Crash-safe resume.** Data goes straight into one preallocated `<name>.part` file with positional writes. Every 2 s the engine syncs that data, then atomically replaces `<name>.hauler` with the progress of each segment. A crash, including `kill -9`, can lose a few seconds of progress, but it never records bytes as done before they are on disk.
 - **Safe resume.** Every range request sends `If-Range`. If the file changed on the server, the engine notices and starts over instead of mixing two versions.
 - **Speed limits.** Token buckets for each download and one shared bucket, all changeable while running. A limited connection stops reading, so TCP slows the server down too.
-- **Retries.** Exponential backoff with jitter, honouring `Retry-After`, for timeouts, 408, 429 and 5xx responses.
+- **Retries.** Exponential backoff with jitter, honouring `Retry-After` up to 2 minutes, for timeouts, 408, 429 and 5xx responses.
+- **Connection caps.** Some hosts allow only a few connections per client and redirect the rest to a "too many requests" page or answer 429 or 503. While other connections are still streaming, the turned-away ones drop out and the rest of the file is split among the ones that work.
 - **No ranges?** Falls back to one connection, which cannot be resumed.
 
 ## The daemon
@@ -71,6 +72,7 @@ Ctrl-C pauses `get`; running the same command again resumes it. Set `HAULER_LOG=
 - **Storage.** SQLite in WAL mode at `$XDG_STATE_HOME/hauler/hauler.db`. Per-segment progress stays in each download's `.hauler` file.
 - **Sleep.** While anything downloads, the daemon holds a logind sleep inhibitor, visible in `systemd-inhibit --list`.
 - **Network.** It follows NetworkManager. Downloads are held while offline, or on a metered connection unless `pause_on_metered` is off, and they resume by themselves.
+- **Logs.** Under systemd they go to the journal (`journalctl --user -u hauler`). Started by the desktop app, they go to `$XDG_STATE_HOME/hauler/haulerd.log`, with the previous run's in `haulerd.log.old`. `HAULER_LOG=debug` shows more.
 - **Idle cost.** About 11 MB of memory, and no timers run while nothing is downloading.
 
 ## Benchmarks

@@ -3,7 +3,9 @@
 //! It serves one synthetic file whose bytes are a pure function of their
 //! offset, so clients can verify any range without the server keeping the
 //! file in memory. It supports `Range`, `ETag` and `If-Range`, and can
-//! throttle each connection to mimic servers that cap per-connection speed.
+//! throttle each connection to mimic servers that cap per-connection speed,
+//! or cap how many responses stream at once, redirecting the rest to an HTML
+//! "too many requests" page the way some file hosts do.
 
 use std::convert::Infallible;
 use std::net::SocketAddr;
@@ -50,6 +52,9 @@ pub struct Config {
     pub filename: Option<String>,
     /// Answer every request with a 302 to this URL instead.
     pub redirect_to: Option<String>,
+    /// At most this many responses stream at once; further requests for the
+    /// file get a 302 to `/busy.html`, a small HTML page.
+    pub max_streams: Option<u64>,
 }
 
 impl Default for Config {
@@ -61,6 +66,7 @@ impl Default for Config {
             slow_every: None,
             filename: None,
             redirect_to: None,
+            max_streams: None,
         }
     }
 }
@@ -74,7 +80,22 @@ pub struct Stats {
     pub version: AtomicU64,
     /// Requests that carried a `Cookie` header.
     pub cookie_requests: AtomicU64,
+    /// Responses streaming right now.
+    pub streaming: AtomicU64,
+    /// Requests sent to `/busy.html` because of `max_streams`.
+    pub refused: AtomicU64,
 }
+
+/// Counts a response as streaming until its body is dropped.
+struct Streaming(Arc<Stats>);
+
+impl Drop for Streaming {
+    fn drop(&mut self) {
+        self.0.streaming.fetch_sub(1, Ordering::SeqCst);
+    }
+}
+
+const BUSY_PAGE: &str = "<html><body>Too many requests. Finish your current download first.</body></html>";
 
 pub struct Server {
     pub addr: SocketAddr,
@@ -131,6 +152,31 @@ async fn handle(
             .unwrap();
         return Ok(resp);
     }
+    if req.uri().path() == "/busy.html" {
+        let resp = Response::builder()
+            .status(StatusCode::OK)
+            .header(header::CONTENT_TYPE, "text/html")
+            .header(header::CONTENT_LENGTH, BUSY_PAGE.len())
+            .body(BodyExt::boxed(http_body_util::Full::new(Bytes::from_static(BUSY_PAGE.as_bytes()))))
+            .unwrap();
+        return Ok(resp);
+    }
+    let streaming = match config.max_streams {
+        Some(max) => {
+            if stats.streaming.fetch_add(1, Ordering::SeqCst) >= max {
+                stats.streaming.fetch_sub(1, Ordering::SeqCst);
+                stats.refused.fetch_add(1, Ordering::SeqCst);
+                let resp = Response::builder()
+                    .status(StatusCode::FOUND)
+                    .header(header::LOCATION, "/busy.html")
+                    .body(Empty::new().boxed())
+                    .unwrap();
+                return Ok(resp);
+            }
+            Some(Streaming(stats.clone()))
+        }
+        None => None,
+    };
     let etag = format!("\"v{}-{}\"", stats.version.load(Ordering::SeqCst), config.size);
     let size = config.size;
 
@@ -184,7 +230,7 @@ async fn handle(
         rate = Some((r / factor.max(1)).max(1));
     }
 
-    let body = stream::unfold(start, move |pos| async move {
+    let body = stream::unfold((start, streaming), move |(pos, streaming)| async move {
         if pos >= end {
             return None;
         }
@@ -194,7 +240,7 @@ async fn handle(
         }
         let mut buf = vec![0u8; len];
         fill(pos, &mut buf);
-        Some((Ok::<_, Infallible>(Frame::data(Bytes::from(buf))), pos + len as u64))
+        Some((Ok::<_, Infallible>(Frame::data(Bytes::from(buf))), (pos + len as u64, streaming)))
     });
     Ok(builder.body(BodyExt::boxed(StreamBody::new(body))).unwrap())
 }

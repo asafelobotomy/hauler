@@ -16,6 +16,10 @@ pub enum Error {
     Incomplete,
     #[error("no data received for {0:?}")]
     Stalled(Duration),
+    /// Sent elsewhere instead of getting the range: how servers that allow
+    /// only a few connections per client turn away the rest.
+    #[error("the server refused another connection and sent {0} instead")]
+    Refused(String),
     #[error("the file changed on the server since the download started")]
     Changed,
     #[error("i/o error: {0}")]
@@ -40,7 +44,19 @@ impl Error {
                     || *status == StatusCode::TOO_MANY_REQUESTS
                     || status.is_server_error()
             }
-            Error::Incomplete | Error::Stalled(_) => true,
+            Error::Incomplete | Error::Stalled(_) | Error::Refused(_) => true,
+            _ => false,
+        }
+    }
+
+    /// Whether the server turned this connection away for being one too
+    /// many, rather than failing it.
+    pub(crate) fn is_turned_away(&self) -> bool {
+        match self {
+            Error::Refused(_) => true,
+            Error::Status { status, .. } => {
+                *status == StatusCode::TOO_MANY_REQUESTS || *status == StatusCode::SERVICE_UNAVAILABLE
+            }
             _ => false,
         }
     }

@@ -19,6 +19,10 @@ struct Args {
     /// Disable Range support.
     #[arg(long)]
     no_ranges: bool,
+    /// Stream at most this many responses at once; redirect the rest to a
+    /// "too many requests" page.
+    #[arg(long)]
+    max_streams: Option<u64>,
 }
 
 #[tokio::main]
@@ -31,6 +35,7 @@ async fn main() -> std::io::Result<()> {
         slow_every: args.slow_every.map(|n| (n, 10)),
         filename: None,
         redirect_to: None,
+        max_streams: args.max_streams,
     };
     let server = spawn_on(args.listen, config).await?;
     println!("serving {}", server.url());
