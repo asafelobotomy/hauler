@@ -43,6 +43,10 @@ async fn connection(stream: UnixStream, manager: Arc<Manager>, shutdown: Cancell
     });
 
     let mut lines = BufReader::new(read).lines();
+    // Ends the event forwarder with the connection: it holds a sender, so the
+    // writer would otherwise wait for the next event to notice the hang-up.
+    let closed = CancellationToken::new();
+    let mut subscribed = false;
     loop {
         let line = tokio::select! {
             _ = shutdown.cancelled() => break,
@@ -55,8 +59,9 @@ async fn connection(stream: UnixStream, manager: Arc<Manager>, shutdown: Cancell
             continue;
         }
         let (reply, subscribe) = dispatch(&manager, &line).await;
-        if subscribe {
-            tokio::spawn(forward_events(manager.subscribe(), out.clone()));
+        if subscribe && !subscribed {
+            subscribed = true;
+            tokio::spawn(forward_events(manager.subscribe(), out.clone(), closed.clone()));
         }
         if let Some(reply) = reply
             && out.send(reply).await.is_err()
@@ -64,13 +69,22 @@ async fn connection(stream: UnixStream, manager: Arc<Manager>, shutdown: Cancell
             break;
         }
     }
+    closed.cancel();
     drop(out);
     let _ = writer.await;
 }
 
-async fn forward_events(mut events: broadcast::Receiver<hauler_ipc::Event>, out: mpsc::Sender<String>) {
+async fn forward_events(
+    mut events: broadcast::Receiver<hauler_ipc::Event>,
+    out: mpsc::Sender<String>,
+    closed: CancellationToken,
+) {
     loop {
-        let event = match events.recv().await {
+        let received = tokio::select! {
+            _ = closed.cancelled() => return,
+            r = events.recv() => r,
+        };
+        let event = match received {
             Ok(e) => e,
             Err(broadcast::error::RecvError::Lagged(n)) => {
                 debug!("subscriber lagged by {n} events");

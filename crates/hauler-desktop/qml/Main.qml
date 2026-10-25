@@ -59,6 +59,11 @@ Kirigami.ApplicationWindow {
         onTaskRemoved: id => tasks.removeId(id)
         onProgress: json => tasks.applyProgress(JSON.parse(json))
         onFailed: message => root.showPassiveNotification(message, "long")
+        onLaunchedAgain: urls => {
+            root.showWindow();
+            if (urls !== "")
+                root.openAdd(urls);
+        }
     }
 
     // Development aid: with HAULER_DESKTOP_DEMO=<prefix>, save the main view,

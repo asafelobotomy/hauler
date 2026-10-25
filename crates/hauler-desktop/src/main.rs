@@ -5,8 +5,14 @@ use cxx_qt_lib::{QQmlApplicationEngine, QQuickStyle, QString, QUrl};
 mod app;
 mod backend;
 mod daemon;
+mod single;
 
 fn main() {
+    // Already running: hand it our links (or have it show its window) and go.
+    let demo = std::env::var_os("HAULER_DESKTOP_DEMO").is_some();
+    if !demo && !single::claim(&single::links(std::env::args().skip(1))) {
+        return;
+    }
     cxx_qt::init_qml_module!("org.hauler.desktop");
 
     // Plasma provides the native Kirigami style; elsewhere fall back to Fusion,

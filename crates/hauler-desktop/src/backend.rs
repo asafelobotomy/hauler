@@ -80,6 +80,10 @@ pub mod qobject {
         fn segments(self: Pin<&mut Backend>, id: i64, json: QString);
         #[qsignal]
         fn failed(self: Pin<&mut Backend>, message: QString);
+        /// Hauler was launched again: show the window, and offer `urls`
+        /// (one per line) for adding when there are any.
+        #[qsignal]
+        fn launched_again(self: Pin<&mut Backend>, urls: QString);
     }
 
     impl cxx_qt::Threading for Backend {}
@@ -120,8 +124,7 @@ impl cxx_qt::Initialize for Backend {
         if std::env::args().any(|a| a == "--minimized") {
             self.as_mut().set_start_hidden(true);
         }
-        let urls: Vec<String> =
-            std::env::args().skip(1).filter(|a| a.starts_with("http://") || a.starts_with("https://")).collect();
+        let urls = crate::single::links(std::env::args().skip(1));
         if !urls.is_empty() {
             self.as_mut().set_initial_urls(QString::from(&urls.join("\n")));
         }
@@ -129,6 +132,8 @@ impl cxx_qt::Initialize for Backend {
             self.as_mut().set_demo_prefix(QString::from(&prefix));
         }
         let qt = self.qt_thread();
+        let later = qt.clone();
+        crate::single::serve(move |urls| on_qt(&later, move |b| b.launched_again(QString::from(&urls))));
         std::thread::Builder::new()
             .name("hauler-ipc".into())
             .spawn(move || {
@@ -228,6 +233,9 @@ async fn worker(qt: CxxQtThread<Backend>, mut commands: mpsc::UnboundedReceiver<
                     return; // the UI is gone
                 }
                 on_qt(&qt, |b| b.set_connected(false));
+                // The daemon went away; if it does not come back by itself
+                // (socket activation), start one again.
+                tried_spawn = false;
             }
             Err(_) if !tried_spawn => {
                 tried_spawn = true;

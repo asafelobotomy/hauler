@@ -3,6 +3,7 @@ import QtQuick.Controls as QQC2
 import QtQuick.Dialogs
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
+import org.hauler.desktop
 
 Kirigami.ScrollablePage {
     id: page
@@ -125,7 +126,7 @@ Kirigami.ScrollablePage {
     FolderDialog {
         id: folderDialog
 
-        currentFolder: "file://" + dirField.text
+        currentFolder: dirField.text ? Fmt.fileUrl(dirField.text) : ""
         onAccepted: dirField.text = decodeURIComponent(selectedFolder.toString().replace(/^file:\/\//, ""))
     }
 }

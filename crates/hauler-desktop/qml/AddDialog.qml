@@ -3,6 +3,7 @@ import QtQuick.Controls as QQC2
 import QtQuick.Dialogs
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
+import org.hauler.desktop
 
 Kirigami.Dialog {
     id: dialog
@@ -53,6 +54,9 @@ Kirigami.Dialog {
     parent: QQC2.Overlay.overlay
     title: qsTr("Add Download")
     preferredWidth: Kirigami.Units.gridUnit * 30
+    // As in DetailsDialog: never taller than the window less the room its
+    // open animation slides through, or its position never settles.
+    maximumHeight: parent ? parent.height - Kirigami.Units.gridUnit * 5 : Infinity
     padding: Kirigami.Units.largeSpacing
     standardButtons: QQC2.Dialog.Cancel
     customFooterActions: Kirigami.Action {
@@ -188,7 +192,7 @@ Kirigami.Dialog {
     FolderDialog {
         id: folderDialog
 
-        currentFolder: dirField.text ? "file://" + dirField.text : ""
+        currentFolder: dirField.text ? Fmt.fileUrl(dirField.text) : ""
         onAccepted: dirField.text = decodeURIComponent(selectedFolder.toString().replace(/^file:\/\//, ""))
     }
 }

@@ -2,7 +2,7 @@
 Description=hauler download daemon
 Documentation=https://github.com/asafelobotomy/hauler
 Requires=hauler.socket
-After=hauler.socket network-online.target
+After=hauler.socket
 
 [Service]
 Type=simple

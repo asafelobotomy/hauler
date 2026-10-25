@@ -39,6 +39,9 @@ pub async fn probe(client: &Client, url: &str, headers: &HeaderMap) -> Result<Pr
     if !(status == StatusCode::OK || status == StatusCode::PARTIAL_CONTENT) {
         return Err(status_error(&resp));
     }
+    if sent_away(url, resp.url(), resp.headers()) {
+        return Err(Error::Refused(resp.url().to_string()));
+    }
 
     let h = resp.headers();
     let (ranges, size) = if status == StatusCode::PARTIAL_CONTENT {
@@ -58,6 +61,20 @@ pub async fn probe(client: &Client, url: &str, headers: &HeaderMap) -> Result<Pr
         .filter(|n| !n.is_empty());
 
     Ok(Probe { final_url, size, ranges, etag, last_modified, filename })
+}
+
+/// Whether a redirect landed on a web page instead of the file: how hosts
+/// that allow only a few downloads per client turn away the rest (`game.7z`
+/// sent to `503.html`). Saving that page as the download would be wrong.
+fn sent_away(requested: &str, landed: &reqwest::Url, headers: &HeaderMap) -> bool {
+    let Ok(requested) = reqwest::Url::parse(requested) else { return false };
+    let html = headers
+        .get(header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .is_some_and(|v| v.trim_start().to_ascii_lowercase().starts_with("text/html"));
+    let wanted = url_filename(&requested).unwrap_or_default().to_ascii_lowercase();
+    let got = url_filename(landed).unwrap_or_default().to_ascii_lowercase();
+    html && requested != *landed && wanted != got && !wanted.ends_with(".html") && !wanted.ends_with(".htm")
 }
 
 pub(crate) fn status_error(resp: &Response) -> Error {
@@ -115,13 +132,33 @@ fn percent_decode(s: &str) -> String {
     String::from_utf8_lossy(&out).into_owned()
 }
 
+/// Longest name kept, in bytes: Linux allows 255, and the `.hauler.tmp`
+/// suffix and a ` (n)` for duplicates need room too.
+const MAX_NAME: usize = 200;
+
 /// Keep only the last path component and drop characters that are unsafe in
-/// file names.
+/// file names: controls, and the bidirectional overrides that can make
+/// `invoice<U+202E>fdp.exe` display as `invoiceexe.pdf`.
 pub fn sanitize_filename(name: &str) -> String {
     let base = name.rsplit(['/', '\\']).next().unwrap_or("");
-    let cleaned: String = base.chars().filter(|c| !c.is_control() && *c != '\0').collect();
-    let trimmed = cleaned.trim().trim_start_matches('.');
-    trimmed.to_owned()
+    let bidi =
+        |c: char| matches!(c, '\u{061C}' | '\u{200E}' | '\u{200F}' | '\u{202A}'..='\u{202E}' | '\u{2066}'..='\u{2069}');
+    let cleaned: String = base.chars().filter(|&c| !c.is_control() && !bidi(c)).collect();
+    shorten(cleaned.trim().trim_start_matches('.'))
+}
+
+/// Cut an overlong name to [`MAX_NAME`] bytes, keeping a short extension.
+fn shorten(name: &str) -> String {
+    if name.len() <= MAX_NAME {
+        return name.to_owned();
+    }
+    let ext = name.rsplit_once('.').map(|(_, e)| e).filter(|e| e.len() <= 16).map(|e| format!(".{e}"));
+    let ext = ext.unwrap_or_default();
+    let mut cut = MAX_NAME - ext.len();
+    while !name.is_char_boundary(cut) {
+        cut -= 1;
+    }
+    format!("{}{ext}", name[..cut].trim_end())
 }
 
 #[cfg(test)]
@@ -147,5 +184,29 @@ mod tests {
         assert_eq!(sanitize_filename("../../etc/passwd"), "passwd");
         assert_eq!(sanitize_filename(".hidden"), "hidden");
         assert_eq!(sanitize_filename("a\\b.zip"), "b.zip");
+        assert_eq!(sanitize_filename("invoice\u{202E}fdp.exe"), "invoicefdp.exe");
+    }
+
+    #[test]
+    fn shortens_overlong_names_keeping_the_extension() {
+        let long = format!("{}.tar.gz", "é".repeat(200));
+        let short = sanitize_filename(&long);
+        assert!(short.len() <= MAX_NAME, "{}", short.len());
+        assert!(short.ends_with("é.gz"), "{short}");
+    }
+
+    #[test]
+    fn tells_a_busy_page_from_the_file() {
+        let html = |t: &'static str| HeaderMap::from_iter([(header::CONTENT_TYPE, HeaderValue::from_static(t))]);
+        let url = |u: &str| reqwest::Url::parse(u).unwrap();
+        let page = html("text/html; charset=utf-8");
+        assert!(sent_away("https://h.example/files/game.7z", &url("https://h.example/503.html"), &page));
+        assert!(sent_away("https://h.example/get?id=4", &url("https://h.example/busy.html"), &page));
+        // The file itself, wherever it lives, or a page asked for on purpose.
+        let zip = html("application/zip");
+        assert!(!sent_away("https://h.example/game.7z", &url("https://cdn.example/x/game.7z"), &zip));
+        assert!(!sent_away("https://h.example/get?id=4", &url("https://cdn.example/game.7z"), &zip));
+        assert!(!sent_away("http://h.example/a.html", &url("https://h.example/b.html"), &page));
+        assert!(!sent_away("https://h.example/page", &url("https://h.example/page"), &page));
     }
 }

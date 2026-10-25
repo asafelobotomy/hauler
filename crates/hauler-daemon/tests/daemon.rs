@@ -245,3 +245,27 @@ async fn file_names_cannot_escape_the_download_folder() {
     }
     daemon.stop().await;
 }
+
+#[tokio::test]
+async fn removing_an_unstarted_download_keeps_files_it_never_made() {
+    let server = spawn(ServerConfig { size: MIB, ..Default::default() }).await.unwrap();
+    let dir = tempdir("not-mine");
+    let daemon = Daemon::start(&dir).await;
+    let mut client = daemon.client().await;
+    // Files of the same name that this download did not create: the user's
+    // own file, and another download's partial data.
+    let downloads = dir.join("downloads");
+    for f in ["file.bin", "file.bin.part", "file.bin.hauler"] {
+        std::fs::write(downloads.join(f), b"keep").unwrap();
+    }
+
+    let task = client
+        .add(&AddParams { url: server.url(), filename: Some("file.bin".into()), paused: true, ..Default::default() })
+        .await
+        .unwrap();
+    client.remove(task.id, true).await.unwrap();
+    for f in ["file.bin", "file.bin.part", "file.bin.hauler"] {
+        assert_eq!(std::fs::read(downloads.join(f)).unwrap(), b"keep", "{f} was deleted");
+    }
+    daemon.stop().await;
+}

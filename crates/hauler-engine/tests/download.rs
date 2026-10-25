@@ -204,7 +204,7 @@ async fn being_sent_to_another_page_on_resume_keeps_the_progress() {
         .await
         .err()
         .expect("a busy page must not replace the download");
-    assert!(matches!(err, Error::Refused(_)), "{err}");
+    assert!(err.is_turned_away(), "{err}");
     assert_eq!(std::fs::metadata(dir.join("file.bin.part")).unwrap().len(), size);
 
     let task = prepare(client().unwrap(), &server.url(), &dir, o).await.unwrap();

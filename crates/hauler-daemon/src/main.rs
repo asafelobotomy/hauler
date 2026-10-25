@@ -86,9 +86,44 @@ fn stderr_is_journal() -> bool {
 }
 
 /// URLs in the log can carry download keys, so only the user may read it.
+/// The running daemon holds a lock on its log; a second one (which is about
+/// to find the socket taken) leaves that log and its predecessor alone.
 fn open_log(dir: &Path) -> std::io::Result<File> {
     fs::DirBuilder::new().recursive(true).mode(0o700).create(dir)?;
     let path = dir.join("haulerd.log");
+    if let Ok(current) = File::open(&path)
+        && !lock(&current)
+    {
+        return Err(std::io::Error::new(std::io::ErrorKind::WouldBlock, "another haulerd is logging"));
+    }
     let _ = fs::rename(&path, dir.join("haulerd.log.old"));
-    OpenOptions::new().create(true).append(true).mode(0o600).open(path)
+    let file = OpenOptions::new().create(true).append(true).mode(0o600).open(path)?;
+    lock(&file);
+    Ok(file)
+}
+
+/// Take an exclusive lock; false only when another process holds one.
+fn lock(file: &File) -> bool {
+    use rustix::fs::{FlockOperation, flock};
+    !matches!(flock(file, FlockOperation::NonBlockingLockExclusive), Err(rustix::io::Errno::WOULDBLOCK))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::open_log;
+
+    #[test]
+    fn a_second_daemon_leaves_the_running_ones_log_alone() {
+        let dir = std::env::temp_dir().join(format!("haulerd-log-test-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("haulerd.log"), b"last run").unwrap();
+        let running = open_log(&dir).unwrap();
+        assert!(open_log(&dir).is_err());
+        assert_eq!(std::fs::read(dir.join("haulerd.log.old")).unwrap(), b"last run", "rotated once, by the first");
+        drop(running);
+        // Once it stops, the next start rotates as usual.
+        let _next = open_log(&dir).unwrap();
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
 }

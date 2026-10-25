@@ -10,6 +10,10 @@ use std::time::Duration;
 /// Its output goes where ours does, so a failure to start is visible, and a
 /// thread waits on it so it never lingers as a zombie if it exits early.
 pub fn spawn_daemon() {
+    // One we started earlier that is still alive is merely slow to answer.
+    if SPAWNED.lock().unwrap().as_ref().is_some_and(|(_, reaper)| !reaper.is_finished()) {
+        return;
+    }
     let sibling = std::env::current_exe().ok().and_then(|p| p.parent().map(|d| d.join("haulerd")));
     let program = sibling.filter(|p| p.exists()).unwrap_or_else(|| PathBuf::from("haulerd"));
     let mut command = std::process::Command::new(&program);
@@ -56,6 +60,10 @@ static SPAWNED: std::sync::Mutex<Option<(u32, std::thread::JoinHandle<()>)>> = s
 /// not outlive us. A daemon from systemd or started elsewhere is left alone.
 pub fn stop_spawned_daemon() {
     let Some((pid, reaper)) = SPAWNED.lock().unwrap().take() else { return };
+    // Already exited and reaped: its pid may belong to another process now.
+    if reaper.is_finished() {
+        return;
+    }
     // SAFETY: plain kill(2) on a pid we spawned and have not reaped yet.
     unsafe { libc::kill(pid as libc::pid_t, libc::SIGTERM) };
     // haulerd allows downloads up to 10 s to flush; wait a little longer.

@@ -13,7 +13,17 @@ use hauler_engine::{self as engine, CancellationToken, Outcome, Task};
 use hauler_ipc::{Event, ProgressUpdate, TaskId, TaskState};
 use tracing::{error, info, warn};
 
+use tokio::time::Instant;
+
 use super::{Inner, Manager, Running, SAVE_EVERY_TICKS, now, stop};
+
+/// Times in a row a server may turn a download away before it fails.
+pub(super) const MAX_TURNED_AWAY: u32 = 10;
+
+/// 30 s, then doubling, at most 5 min.
+pub(super) fn turned_away_delay(times: u32) -> Duration {
+    (Duration::from_secs(30) * 2u32.saturating_pow(times.saturating_sub(1).min(4))).min(Duration::from_secs(300))
+}
 
 impl Manager {
     /// Start and stop downloads until `shutdown`. Ticks once a second only
@@ -23,16 +33,26 @@ impl Manager {
         tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
         loop {
             self.schedule();
-            let busy = self.inner.lock().unwrap().active() > 0;
+            let (busy, retry_at) = {
+                let inner = self.inner.lock().unwrap();
+                (inner.active() > 0, inner.tasks.values().filter_map(|e| e.retry_at).min())
+            };
+            let retry = async {
+                match retry_at {
+                    Some(t) => tokio::time::sleep_until(t).await,
+                    None => std::future::pending().await,
+                }
+            };
             tokio::select! {
                 _ = shutdown.cancelled() => return,
                 _ = self.wake.notified() => {}
                 _ = tick.tick(), if busy => self.tick(),
+                _ = retry => {}
             }
         }
     }
 
-    fn schedule(self: &Arc<Self>) {
+    pub(super) fn schedule(self: &Arc<Self>) {
         let mut inner = self.inner.lock().unwrap();
         if inner.shutting_down {
             return;
@@ -51,10 +71,12 @@ impl Manager {
         if slots == 0 {
             return;
         }
+        let now = Instant::now();
         let mut ready: Vec<_> = inner
             .tasks
             .values()
             .filter(|e| e.run.is_none() && matches!(e.info.state, TaskState::Queued | TaskState::Waiting))
+            .filter(|e| e.retry_at.is_none_or(|t| t <= now))
             .map(|e| (e.info.state != TaskState::Waiting, -e.info.priority, e.info.id))
             .collect();
         ready.sort();
@@ -69,6 +91,7 @@ impl Manager {
         let cancel = CancellationToken::new();
         entry.info.state = TaskState::Running;
         entry.info.error = None;
+        entry.retry_at = None;
 
         let mut headers = HeaderMap::new();
         for (name, value) in &entry.spec.headers {
@@ -168,7 +191,7 @@ impl Manager {
         self.changed(&inner, id);
     }
 
-    fn on_finished(&self, id: TaskId, result: engine::Result<Outcome>) {
+    pub(super) fn on_finished(&self, id: TaskId, result: engine::Result<Outcome>) {
         let mut inner = self.inner.lock().unwrap();
         let Some(entry) = inner.tasks.get_mut(&id) else { return };
         let Some(run) = entry.run.take() else { return };
@@ -179,6 +202,7 @@ impl Manager {
         entry.info.connections = 0;
         match result {
             Ok(Outcome::Completed(path)) => {
+                entry.turned_away = 0;
                 entry.info.state = TaskState::Completed;
                 entry.info.finished_at = Some(now());
                 entry.info.name = path.file_name().map(|n| n.to_string_lossy().into_owned());
@@ -188,6 +212,16 @@ impl Manager {
             }
             Ok(Outcome::Paused) => entry.info.state = run.after_stop,
             Err(_) if run.cancel.is_cancelled() => entry.info.state = run.after_stop,
+            // A host that caps downloads per client sent this one away: free
+            // the slot and ask again later, as other downloads finish.
+            Err(e) if e.is_turned_away() && entry.turned_away < MAX_TURNED_AWAY => {
+                entry.turned_away += 1;
+                let delay = turned_away_delay(entry.turned_away);
+                info!("download {id}: {e}; trying again in {} s", delay.as_secs());
+                entry.info.state = TaskState::Queued;
+                entry.info.error = Some(format!("{e}; trying again in {} s", delay.as_secs()));
+                entry.retry_at = Some(Instant::now() + delay);
+            }
             Err(e) => {
                 warn!("download {id} failed: {e}");
                 entry.info.state = TaskState::Failed;

@@ -202,10 +202,11 @@ pub async fn prepare(client: Client, url: &str, dir: &Path, opts: Options) -> Re
             let mut plan = None;
             if let Some(saved) = saved {
                 let part_ok = fs::metadata(&part).map(|m| m.len() == size).unwrap_or(false);
-                if saved.matches(size, probe.etag.as_deref(), probe.last_modified.as_deref()) && part_ok {
+                let same = saved.matches(size, probe.etag.as_deref(), probe.last_modified.as_deref());
+                if same && part_ok && saved.is_resumable() {
                     plan = Some(Plan::from_state(&saved.segments, opts.min_split));
                 } else {
-                    info!("remote file changed or partial data missing; starting over");
+                    info!("remote file changed, partial data missing or a fresh start asked for; starting over");
                 }
             }
             let fresh = plan.is_none();

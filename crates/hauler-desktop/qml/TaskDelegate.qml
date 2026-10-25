@@ -72,6 +72,9 @@ QQC2.ItemDelegate {
                 parts.push(amountText());
             if (status === "paused" && !resumable)
                 parts.push(qsTr("will restart"));
+            // Turned away by the server, and asked again later.
+            if (status === "queued" && error !== "")
+                parts.push(error);
             break;
         case "completed":
             parts.push(Fmt.bytes(size > 0 ? size : received));

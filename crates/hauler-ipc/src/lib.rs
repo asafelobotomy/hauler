@@ -350,7 +350,14 @@ mod tests {
 
     #[test]
     fn states_round_trip() {
-        for s in [TaskState::Queued, TaskState::Running, TaskState::Paused, TaskState::Waiting, TaskState::Completed] {
+        for s in [
+            TaskState::Queued,
+            TaskState::Running,
+            TaskState::Paused,
+            TaskState::Waiting,
+            TaskState::Completed,
+            TaskState::Failed,
+        ] {
             assert_eq!(TaskState::parse(s.as_str()), Some(s));
         }
     }

@@ -285,7 +285,10 @@ async fn update_view(
     }
 
     match task.state {
-        TaskState::Running | TaskState::Paused | TaskState::Waiting => {
+        // Queued keeps its view too: resuming a paused download passes
+        // through the queue, and closing the view there would show it as
+        // finished. A daemon that stops closes every view on its way out.
+        TaskState::Running | TaskState::Paused | TaskState::Waiting | TaskState::Queued => {
             let suspended = task.state != TaskState::Running;
             if suspended != view.suspended {
                 let _ = p.set_suspended(suspended).await;
@@ -302,11 +305,6 @@ async fn update_view(
             let error = task.error.clone().unwrap_or_else(|| "Download failed".into());
             let view = views.remove(&task.id).unwrap();
             close_view(view, &error).await;
-        }
-        // Back in the queue (daemon stopping): the next run opens a new view.
-        TaskState::Queued => {
-            let view = views.remove(&task.id).unwrap();
-            close_view(view, "").await;
         }
     }
 }
@@ -343,9 +341,25 @@ async fn open_path(conn: &zbus::Connection, path: &Path, action: &str) {
             return;
         }
         if let Some(dir) = path.parent() {
-            let _ = std::process::Command::new("xdg-open").arg(dir).spawn();
+            xdg_open(dir);
         }
     } else {
-        let _ = std::process::Command::new("xdg-open").arg(path).spawn();
+        xdg_open(path);
+    }
+}
+
+/// Open `path` with the desktop's default app, reaping the helper when it
+/// exits so it never lingers as a zombie. It gets none of the socket
+/// activation variables meant for us.
+fn xdg_open(path: &Path) {
+    let child = std::process::Command::new("xdg-open")
+        .arg(path)
+        .env_remove("LISTEN_PID")
+        .env_remove("LISTEN_FDS")
+        .env_remove("LISTEN_FDNAMES")
+        .spawn();
+    match child {
+        Ok(mut child) => drop(std::thread::spawn(move || child.wait())),
+        Err(e) => debug!("xdg-open: {e}"),
     }
 }

@@ -4,7 +4,7 @@
 use std::path::Path;
 
 use hauler_engine::header::{HeaderName, HeaderValue};
-use hauler_engine::{self as engine, Checksum, Limiter};
+use hauler_engine::{self as engine, Checksum};
 use hauler_ipc::{
     AddParams, Event, RpcError, Segment, SegmentMap, Settings, SettingsPatch, Status, TaskId, TaskInfo, TaskState,
 };
@@ -64,8 +64,7 @@ impl Manager {
             connections: p.connections,
         };
         info.id = self.store.insert(&info, &spec).map_err(internal)?;
-        let limiter = Limiter::new(info.limit);
-        inner.tasks.insert(info.id, Entry { info: info.clone(), spec, limiter, run: None });
+        inner.tasks.insert(info.id, Entry::new(info.clone(), spec));
         drop(inner);
         self.emit(Event::TaskAdded { task: info.clone() });
         self.wake.notify_one();
@@ -85,8 +84,9 @@ impl Manager {
         let mut inner = self.inner.lock().unwrap();
         let entry = inner.tasks.get_mut(&id).ok_or_else(|| RpcError::not_found(id))?;
         match entry.info.state {
-            TaskState::Running => stop(entry, TaskState::Paused),
-            TaskState::Queued | TaskState::Waiting => entry.info.state = TaskState::Paused,
+            // Also when queued or waiting: one still winding down from an
+            // earlier stop must come to rest paused, not back in the queue.
+            TaskState::Running | TaskState::Queued | TaskState::Waiting => stop(entry, TaskState::Paused),
             TaskState::Paused => {}
             s => return Err(RpcError::new(RpcError::INVALID_STATE, format!("cannot pause a {} download", s.as_str()))),
         }
@@ -101,6 +101,8 @@ impl Manager {
         match entry.info.state {
             TaskState::Paused | TaskState::Failed => {
                 entry.info.state = TaskState::Queued;
+                entry.turned_away = 0;
+                entry.retry_at = None;
                 entry.info.error = None;
                 entry.info.finished_at = None;
                 // Still winding down from a pause: requeue instead of pausing.
@@ -135,10 +137,18 @@ impl Manager {
         if let Some(h) = handle {
             let _ = h.await;
         }
-        // Only ever a single plain name inside the task's folder.
+        // Only ever a single plain name inside the task's folder, and only
+        // files this download made: the finished file once complete, else its
+        // partial data, and nothing at all before the engine settled the name
+        // (the requested name may be someone else's file).
+        let made: &[&str] = match entry.info.state {
+            TaskState::Completed => &[""],
+            _ if entry.info.resumable.is_some() => &[".part", ".hauler"],
+            _ => &[],
+        };
         if delete_files && let Some(name) = entry.spec.filename.as_deref().filter(|n| is_plain_name(n)) {
             let target = Path::new(&entry.info.dir).join(name);
-            for suffix in ["", ".part", ".hauler"] {
+            for suffix in made {
                 let mut p = target.clone().into_os_string();
                 p.push(suffix);
                 let _ = std::fs::remove_file(p);

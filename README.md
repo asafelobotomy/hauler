@@ -18,11 +18,12 @@ Building the desktop app needs Qt 6 (base and declarative), Kirigami, KItemModel
 
 `hauler-desktop` is a Kirigami window onto the daemon. Closing it keeps downloads running; downloads also show up in Plasma's notification area without it.
 
-- **List.** Shows every download with progress, speed, time left and connections. Filters are All, Active and Finished. Each row has pause, resume, open, open folder and remove; removing asks first, with an option to delete the file.
+- **List.** Shows every download with progress, speed, time left and connections. Filters are All, Active and Finished. Each row has pause, resume, open, open folder and remove; removing asks first, with an option to delete the file. Only files the download itself made are deleted: the finished file, or its `.part` and `.hauler` files.
 - **Details.** Shows a live segment map of which byte ranges are done and which are being fetched. The speed limit and priority can be changed here.
 - **Adding.** Several links at once, folder, file name, connections, speed limit, priority, and "add paused". Ctrl+N opens the dialog, Ctrl+V pastes links, and links can be dropped on the window. `hauler-desktop <url>…` opens the dialog with them filled in.
 - **Settings.** Downloads at once, connections, total speed limit, folder, and whether to pause on metered connections.
 - **Tray.** Click to show or hide the window. The menu has pause all, resume all and quit. `--minimized` starts in the tray.
+- **One app.** Starting Hauler again, from the menu or with links, shows the running window and hands it the links instead of opening a second app.
 - **Plasma.** The daemon reports each download to Plasma's job tracker, so progress shows in the notification area. Pause, resume and cancel work from there; cancel removes the download and its partial file. Without a job tracker (GNOME and others), it sends a notification when a download finishes, with Open and Show in Folder actions.
 
 ## Usage
@@ -57,10 +58,10 @@ Ctrl-C pauses `get`; running the same command again resumes it. Set `HAULER_LOG=
 - **Dynamic splitting.** The file starts as up to N equal segments. When a connection runs out of work, it takes the upper half of the segment with the most bytes left. The connection that owned that segment stops at the new boundary.
 - **Slow-connection restarts.** A connection running below 0.3× the mean speed for 5 s gets reopened, because a new connection often takes a faster path through the CDN.
 - **Crash-safe resume.** Data goes straight into one preallocated `<name>.part` file with positional writes. Every 2 s the engine syncs that data, then atomically replaces `<name>.hauler` with the progress of each segment. A crash, including `kill -9`, can lose a few seconds of progress, but it never records bytes as done before they are on disk.
-- **Safe resume.** Every range request sends `If-Range`. If the file changed on the server, the engine notices and starts over instead of mixing two versions.
+- **Safe resume.** When the server gave an `ETag` or `Last-Modified`, every range request sends it in `If-Range`, and a resumed download compares it with the saved one; without either, only the size is compared. If the file changed on the server, the engine notices and starts over instead of mixing two versions. A download that fails its checksum starts over too when retried.
 - **Speed limits.** Token buckets for each download and one shared bucket, all changeable while running. A limited connection stops reading, so TCP slows the server down too.
 - **Retries.** Exponential backoff with jitter, honouring `Retry-After` up to 2 minutes, for timeouts, 408, 429 and 5xx responses.
-- **Connection caps.** Some hosts allow only a few connections per client and redirect the rest to a "too many requests" page or answer 429 or 503. While other connections are still streaming, the turned-away ones drop out and the rest of the file is split among the ones that work.
+- **Connection caps.** Some hosts allow only a few connections per client and redirect the rest to a "too many requests" page or answer 429 or 503. While other connections are still streaming, the turned-away ones drop out and the rest of the file is split among the ones that work. A download whose very first request is redirected to a web page (`game.7z` to `503.html`) is treated the same way: retried, never saved as the file.
 - **No ranges?** Falls back to one connection, which cannot be resumed.
 
 ## The daemon
@@ -68,7 +69,7 @@ Ctrl-C pauses `get`; running the same command again resumes it. Set `HAULER_LOG=
 `haulerd` owns the queue and runs downloads with the engine.
 
 - **API.** JSON-RPC 2.0, one JSON object per line, on `$XDG_RUNTIME_DIR/hauler/hauler.sock` (mode 0600). File permissions are the authentication. Methods and types are in `crates/hauler-ipc`. A `subscribe` call turns the connection into a stream of `event` notifications: task added, updated or removed, progress about once a second, settings, network.
-- **Queue.** Up to `max_active` downloads run at once. Waiting downloads start by priority, then by the order they were added. Downloads that were running when the daemon stopped go back in the queue and resume on the next start.
+- **Queue.** Up to `max_active` downloads run at once. Waiting downloads start by priority, then by the order they were added. Downloads that were running when the daemon stopped go back in the queue and resume on the next start. A download the server turns away for having too many connections goes back in the queue and is tried again after 30 s, then after longer waits up to 5 minutes; after 10 refusals in a row it fails.
 - **Storage.** SQLite in WAL mode at `$XDG_STATE_HOME/hauler/hauler.db`. Per-segment progress stays in each download's `.hauler` file.
 - **Sleep.** While anything downloads, the daemon holds a logind sleep inhibitor, visible in `systemd-inhibit --list`.
 - **Network.** It follows NetworkManager. Downloads are held while offline, or on a metered connection unless `pause_on_metered` is off, and they resume by themselves.
@@ -130,6 +131,10 @@ The tests cover:
 - pause, resume and restarting the daemon mid-download
 - priority order and the global speed limit
 - API error handling
+- hosts that cap connections: turned-away connections, a busy page instead of the file, and requeueing
+- starting over after a checksum mismatch
+- removing a download never deletes files it did not make
+- handing links from a second launch of the desktop app to the first
 
 ## Licence
 

@@ -43,7 +43,7 @@ pub(crate) fn parse_size(s: &str) -> Result<u64, String> {
         Some((i, c)) if c.eq_ignore_ascii_case(&'g') => (&s[..i], 1024 * 1024 * 1024),
         _ => (s, 1),
     };
-    num.parse::<u64>().map(|n| n * mult).map_err(|_| format!("not a size: {s}"))
+    num.parse::<u64>().ok().and_then(|n| n.checked_mul(mult)).ok_or_else(|| format!("not a size: {s}"))
 }
 
 pub(crate) fn parse_header(s: &str) -> Result<(HeaderName, HeaderValue), String> {
@@ -87,6 +87,7 @@ mod tests {
         assert_eq!(parse_size("4m"), Ok(4 * 1024 * 1024));
         assert_eq!(parse_size("100"), Ok(100));
         assert!(parse_size("lots").is_err());
+        assert!(parse_size("99999999999G").is_err(), "overflow");
     }
 
     #[test]

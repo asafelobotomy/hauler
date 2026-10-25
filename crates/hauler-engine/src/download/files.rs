@@ -7,6 +7,7 @@ use tracing::warn;
 
 use super::{Options, Outcome};
 use crate::error::{Error, Result};
+use crate::state::ResumeState;
 
 pub(super) struct Paths {
     pub(super) target: PathBuf,
@@ -71,7 +72,19 @@ pub(super) async fn blocking<T: Send + 'static>(f: impl FnOnce() -> std::io::Res
 pub(super) async fn finish(opts: &Options, paths: &Paths) -> Result<Outcome> {
     if let Some(sum) = opts.checksum.clone() {
         let part = paths.part.clone();
-        tokio::task::spawn_blocking(move || sum.verify_file(&part)).await.map_err(std::io::Error::other)??;
+        let verified =
+            tokio::task::spawn_blocking(move || sum.verify_file(&part)).await.map_err(std::io::Error::other)?;
+        if let Err(e) = verified {
+            // The bytes on disk are wrong: have the next run fetch them all
+            // again into this same file instead of re-checking them.
+            if let Ok(Some(mut state)) = ResumeState::load(&paths.state) {
+                state.segments.clear();
+                if let Err(e) = state.save(&paths.state) {
+                    warn!("could not reset resume state: {e}");
+                }
+            }
+            return Err(e);
+        }
     }
     fs::rename(&paths.part, &paths.target)?;
     match fs::remove_file(&paths.state) {

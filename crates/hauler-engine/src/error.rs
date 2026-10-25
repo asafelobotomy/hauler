@@ -50,10 +50,11 @@ impl Error {
     }
 
     /// Whether the server turned this connection away for being one too
-    /// many, rather than failing it.
-    pub(crate) fn is_turned_away(&self) -> bool {
+    /// many, rather than failing it; trying again later may well work.
+    pub fn is_turned_away(&self) -> bool {
         match self {
             Error::Refused(_) => true,
+            Error::RetriesExhausted { last, .. } => last.is_turned_away(),
             Error::Status { status, .. } => {
                 *status == StatusCode::TOO_MANY_REQUESTS || *status == StatusCode::SERVICE_UNAVAILABLE
             }

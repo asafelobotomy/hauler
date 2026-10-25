@@ -812,6 +812,7 @@ dependencies = [
  "hauler-testserver",
  "hex",
  "rusqlite",
+ "rustix",
  "serde",
  "serde_json",
  "sha2",

@@ -13,12 +13,15 @@ use hauler_engine::{self as engine, CancellationToken, Limiter, Progress};
 use hauler_ipc::{Event, NetworkState, RpcError, Settings, TaskId, TaskInfo, TaskState};
 use tokio::sync::{Notify, broadcast, watch};
 use tokio::task::JoinHandle;
+use tokio::time::Instant;
 use tracing::{info, warn};
 
 use crate::store::{Store, TaskSpec};
 
 mod ops;
 mod schedule;
+#[cfg(test)]
+mod tests;
 
 /// Progress is written to the database every this many ticks.
 const SAVE_EVERY_TICKS: u64 = 5;
@@ -28,6 +31,17 @@ struct Entry {
     spec: TaskSpec,
     limiter: Arc<Limiter>,
     run: Option<Running>,
+    /// Turned away by the server this many times in a row.
+    turned_away: u32,
+    /// Not before then: the server turned it away and is asked again later.
+    retry_at: Option<Instant>,
+}
+
+impl Entry {
+    fn new(info: TaskInfo, spec: TaskSpec) -> Self {
+        let limiter = Limiter::new(info.limit);
+        Self { info, spec, limiter, run: None, turned_away: 0, retry_at: None }
+    }
 }
 
 struct Running {
@@ -112,8 +126,7 @@ impl Manager {
                 info.state = TaskState::Queued;
                 store.update(&info, &spec)?;
             }
-            let limiter = Limiter::new(info.limit);
-            tasks.insert(info.id, Entry { info, spec, limiter, run: None });
+            tasks.insert(info.id, Entry::new(info, spec));
         }
         info!("loaded {} downloads", tasks.len());
 

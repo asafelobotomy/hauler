@@ -20,6 +20,9 @@ pub fn from_systemd() -> Option<UnixListener> {
     // SAFETY: systemd guarantees fd 3 is an open listening socket for this pid.
     let listener = unsafe { UnixListener::from_raw_fd(SD_LISTEN_FDS_START) };
     listener.set_nonblocking(true).ok()?;
+    // systemd passes it inheritable; apps opened from a notification must
+    // not hold the daemon's socket.
+    rustix::io::fcntl_setfd(&listener, rustix::io::FdFlags::CLOEXEC).ok()?;
     Some(listener)
 }
 
