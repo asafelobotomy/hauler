@@ -82,7 +82,7 @@ jobs:
           mkdir -p "$XDG_RUNTIME_DIR" && chmod 700 "$XDG_RUNTIME_DIR"
           timeout 120 "$app"
           ls "$RUNNER_TEMP"/shot-*.png
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: appimage
           path: target/appimage/Hauler-*-x86_64.AppImage
@@ -111,7 +111,7 @@ jobs:
           sudo -u builder makepkg --noconfirm --nodeps
       - name: Check package contents
         run: pacman -Qlp dist/arch/hauler-*.pkg.tar.zst
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: arch
           path: dist/arch/hauler-*.pkg.tar.zst
@@ -138,7 +138,7 @@ jobs:
           file "$dir/hauler" "$dir/haulerd"
           "$dir/hauler" --version
           "$dir/haulerd" --version
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: static
           path: target/static/hauler-*-x86_64-linux-musl.tar.gz
