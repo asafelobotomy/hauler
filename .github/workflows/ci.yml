@@ -21,7 +21,7 @@ jobs:
     name: Format
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: rustup toolchain install stable --profile minimal --component rustfmt
       - run: cargo fmt --all --check
       - name: File length
@@ -36,7 +36,7 @@ jobs:
         run: |
           pacman -Syu --noconfirm --needed base-devel git rust cmake \
             qt6-base qt6-declarative kirigami kitemmodels qqc2-desktop-style
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: Swatinem/rust-cache@v2
       - name: Clippy
         run: cargo clippy --workspace --all-targets --locked -- -D warnings

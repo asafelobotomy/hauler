@@ -25,7 +25,7 @@ jobs:
     outputs:
       version: ${{ steps.v.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - id: v
         run: |
           crate=$(cargo pkgid -p hauler-cli | sed 's/.*[#@]//')
@@ -55,7 +55,7 @@ jobs:
             qml6-module-qt-labs-platform qml6-module-qtquick qml6-module-qtquick-controls \
             qml6-module-qtquick-dialogs qml6-module-qtquick-layouts qml6-module-qtquick-templates \
             qml6-module-qtqml-models qml6-module-qtqml-workerscript qml6-module-qtquick-window
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install Rust
         run: |
           curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
@@ -99,7 +99,7 @@ jobs:
           pacman -Syu --noconfirm --needed base-devel git rust cmake \
             qt6-base qt6-declarative kirigami kitemmodels qqc2-desktop-style hicolor-icon-theme
           useradd -m builder
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Build package
         env:
           VERSION: ${{ needs.version.outputs.version }}
@@ -122,7 +122,7 @@ jobs:
     needs: version
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: sudo apt-get update && sudo apt-get install -y musl-tools cmake
       - run: rustup target add x86_64-unknown-linux-musl
       - uses: Swatinem/rust-cache@v2
