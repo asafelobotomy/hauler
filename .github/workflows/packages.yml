@@ -25,7 +25,7 @@ jobs:
     outputs:
       version: ${{ steps.v.outputs.version }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - id: v
         run: |
           crate=$(cargo pkgid -p hauler-cli | sed 's/.*[#@]//')
@@ -55,7 +55,7 @@ jobs:
             qml6-module-qt-labs-platform qml6-module-qtquick qml6-module-qtquick-controls \
             qml6-module-qtquick-dialogs qml6-module-qtquick-layouts qml6-module-qtquick-templates \
             qml6-module-qtqml-models qml6-module-qtqml-workerscript qml6-module-qtquick-window
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install Rust
         run: |
           curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
@@ -82,7 +82,7 @@ jobs:
           mkdir -p "$XDG_RUNTIME_DIR" && chmod 700 "$XDG_RUNTIME_DIR"
           timeout 120 "$app"
           ls "$RUNNER_TEMP"/shot-*.png
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: appimage
           path: target/appimage/Hauler-*-x86_64.AppImage
@@ -99,7 +99,7 @@ jobs:
           pacman -Syu --noconfirm --needed base-devel git rust cmake \
             qt6-base qt6-declarative kirigami kitemmodels qqc2-desktop-style hicolor-icon-theme
           useradd -m builder
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Build package
         env:
           VERSION: ${{ needs.version.outputs.version }}
@@ -111,7 +111,7 @@ jobs:
           sudo -u builder makepkg --noconfirm --nodeps
       - name: Check package contents
         run: pacman -Qlp dist/arch/hauler-*.pkg.tar.zst
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: arch
           path: dist/arch/hauler-*.pkg.tar.zst
@@ -122,7 +122,7 @@ jobs:
     needs: version
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: sudo apt-get update && sudo apt-get install -y musl-tools cmake
       - run: rustup target add x86_64-unknown-linux-musl
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
@@ -138,7 +138,7 @@ jobs:
           file "$dir/hauler" "$dir/haulerd"
           "$dir/hauler" --version
           "$dir/haulerd" --version
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: static
           path: target/static/hauler-*-x86_64-linux-musl.tar.gz
@@ -152,7 +152,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           path: dist
           merge-multiple: true

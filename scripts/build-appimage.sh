@@ -56,6 +56,10 @@ for plugin in "${extra_plugins[@]}"; do
     up=$(dirname "$plugin" | sed 's|[^/]*|..|g')
     patchelf --set-rpath "\$ORIGIN/$up/../lib:\$ORIGIN" "$APPDIR/usr/plugins/$plugin"
 done
+deploy_deps=()
+for plugin in "${extra_plugins[@]}"; do
+    deploy_deps+=(--deploy-deps-only "Hauler.AppDir/usr/plugins/$plugin")
+done
 
 version=${VERSION:-$(cargo pkgid -p hauler-desktop | sed "s/.*[#@]//")-$(git rev-parse --short HEAD)}
 export QMAKE=qmake6
@@ -79,7 +83,7 @@ linuxdeploy-x86_64.AppImage \
     --executable Hauler.AppDir/usr/bin/hauler-desktop \
     --executable Hauler.AppDir/usr/bin/haulerd \
     --executable Hauler.AppDir/usr/bin/hauler \
-    $(printf -- '--deploy-deps-only Hauler.AppDir/usr/plugins/%s ' "${extra_plugins[@]}") \
+    "${deploy_deps[@]}" \
     --desktop-file hauler.desktop \
     --icon-file hauler.svg \
     --plugin qt \
