@@ -8,7 +8,7 @@ use futures_util::StreamExt;
 use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, info, warn};
-use zbus::zvariant::OwnedFd;
+use zbus::OwnedFd;
 
 use crate::manager::Manager;
 

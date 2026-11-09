@@ -5,5 +5,5 @@ members = ["crates/hauler-engine", "crates/hauler-cli", "crates/hauler-testserve
 [workspace.package]
 version = "0.1.2"
 edition = "2024"
-rust-version = "1.88"
+rust-version = "1.89"
 repository = "https://github.com/asafelobotomy/hauler"

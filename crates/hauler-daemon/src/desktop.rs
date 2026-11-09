@@ -14,7 +14,7 @@ use tokio::sync::broadcast::error::RecvError;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, info};
-use zbus::zvariant::{OwnedObjectPath, Value};
+use zbus::{OwnedObjectPath, Variant};
 
 use crate::manager::Manager;
 
@@ -36,7 +36,7 @@ trait JobViewServer {
         &self,
         desktop_entry: &str,
         capabilities: i32,
-        hints: HashMap<&str, Value<'_>>,
+        hints: HashMap<&str, Variant<'_>>,
     ) -> zbus::Result<OwnedObjectPath>;
 }
 
@@ -60,7 +60,7 @@ trait JobView {
     #[zbus(name = "setDescriptionField")]
     fn set_description_field(&self, number: u32, name: &str, value: &str) -> zbus::Result<bool>;
     #[zbus(name = "setDestUrl", no_reply)]
-    fn set_dest_url(&self, url: &Value<'_>) -> zbus::Result<()>;
+    fn set_dest_url(&self, url: &Variant<'_>) -> zbus::Result<()>;
     #[zbus(signal, name = "cancelRequested")]
     fn cancel_requested(&self) -> zbus::Result<()>;
     #[zbus(signal, name = "suspendRequested")]
@@ -84,7 +84,7 @@ trait Notifications {
         summary: &str,
         body: &str,
         actions: &[&str],
-        hints: HashMap<&str, Value<'_>>,
+        hints: HashMap<&str, Variant<'_>>,
         expire_timeout: i32,
     ) -> zbus::Result<u32>;
     #[zbus(signal)]
@@ -223,12 +223,9 @@ async fn open_view(
         Ok(p) => p,
         Err(e) => return debug!("job tracker refused a view: {e}"),
     };
-    let proxy = match JobViewProxy::builder(conn).path(path).map(|b| b.build()) {
-        Ok(fut) => match fut.await {
-            Ok(p) => p,
-            Err(e) => return debug!("job view proxy: {e}"),
-        },
-        Err(e) => return debug!("job view path: {e}"),
+    let proxy = match JobViewProxy::builder(conn).path(path).build().await {
+        Ok(p) => p,
+        Err(e) => return debug!("job view proxy: {e}"),
     };
     let signals = tokio::spawn(forward_controls(proxy.clone(), manager.clone(), task.id));
     views.insert(task.id, View { proxy, signals, suspended: false, described: None });
@@ -277,7 +274,7 @@ async fn update_view(
         let _ = p.set_info_message(&format!("Downloading {name}")).await;
         let _ = p.set_description_field(0, "Source", &task.url).await;
         let _ = p.set_description_field(1, "Destination", &path.display().to_string()).await;
-        let _ = p.set_dest_url(&Value::from(file_url(&path))).await;
+        let _ = p.set_dest_url(&Variant::from(file_url(&path))).await;
         if let Some(size) = task.size {
             let _ = p.set_total_amount(size, "bytes").await;
         }
