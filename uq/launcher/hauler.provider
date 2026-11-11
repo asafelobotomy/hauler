@@ -1,0 +1,9 @@
+# Installed to /usr/share/uq/launcher/hauler.provider by hauler's package.
+# A URL typed or pasted into Spotlight offers "Download with hauler". haulerd serves
+# org.uq.Launcher1.Provider at /org/uq/Launcher1 on the org.hauler.Hauler1 connection.
+[Launcher Provider]
+BusName=org.hauler.Hauler1
+Name=hauler
+# The bus name has a session D-Bus service file (dbus/), so uQ starts haulerd when the launcher
+# opens and a pasted URL finds it running.
+Activatable=true

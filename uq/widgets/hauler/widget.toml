@@ -1,0 +1,21 @@
+# hauler's downloads widget for uQ's bar: a progress ring while anything downloads, and a popup
+# with the queue. Installed to /usr/share/uq/shell/widgets/hauler/ by hauler's package.
+# Reference: docs/integrating.md in the uQ repository.
+uq_api = 1
+id = "hauler"
+name = "Downloads"
+slot = "bar"
+qml = "Widget.qml"
+order = 50
+
+# Shown while haulerd runs (it owns the name for as long as it runs).
+[requires]
+bus_name = "org.hauler.Hauler1"
+
+[dbus]
+name = "org.hauler.Hauler1"
+path = "/org/hauler/Hauler1"
+interface = "org.hauler.Hauler1"
+methods = ["PauseAll", "ResumeAll", "Queue"]
+properties = ["ActiveCount", "QueuedCount", "BytesDone", "BytesTotal"]
+signals = ["Finished"]
