@@ -1,0 +1,7 @@
+# Installed to /usr/share/dbus-1/services/org.hauler.Hauler1.service by hauler's package.
+# Starting the name goes through systemd's hauler.service, which takes its socket from
+# hauler.socket, so there is only ever one haulerd.
+[D-BUS Service]
+Name=org.hauler.Hauler1
+Exec=/usr/bin/haulerd
+SystemdService=hauler.service

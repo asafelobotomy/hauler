@@ -7,6 +7,7 @@ use anyhow::Context;
 use tokio_util::sync::CancellationToken;
 use tracing::info;
 
+pub mod bus;
 mod desktop;
 pub mod manager;
 mod rpc;
@@ -14,7 +15,7 @@ mod socket;
 pub mod store;
 mod system;
 
-pub use manager::{Manager, default_download_dir};
+pub use manager::{Manager, check_url, default_download_dir};
 
 pub struct Config {
     pub socket: PathBuf,
@@ -22,7 +23,8 @@ pub struct Config {
     pub db: Option<PathBuf>,
     /// Default download directory for a fresh database.
     pub download_dir: PathBuf,
-    /// Sleep inhibition and NetworkManager monitoring over D-Bus.
+    /// D-Bus: sleep inhibition, NetworkManager monitoring, desktop
+    /// notifications and `org.hauler.Hauler1` on the session bus.
     pub system_integration: bool,
 }
 
@@ -66,6 +68,7 @@ pub async fn run(config: Config, shutdown: CancellationToken) -> anyhow::Result<
         tokio::spawn(system::inhibit_sleep(manager.active_watch(), shutdown.clone()));
         tokio::spawn(system::watch_network(manager.clone(), shutdown.clone()));
         tokio::spawn(desktop::run(manager.clone(), shutdown.clone()));
+        tokio::spawn(bus::run(manager.clone(), shutdown.clone()));
     }
     let scheduler = tokio::spawn(manager.clone().run(shutdown.clone()));
     rpc::serve(listener, manager.clone(), shutdown.clone()).await;

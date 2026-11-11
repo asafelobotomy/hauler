@@ -16,9 +16,10 @@ Fast, resumable multi-connection downloader for Linux: engine library, `hauler` 
 ## Layout
 - `crates/hauler-engine`: download library (probe, segments, resume state, speed limits).
 - `crates/hauler-ipc`: JSON-RPC types and async client for the daemon socket.
-- `crates/hauler-daemon`: `haulerd` (queue, SQLite store, RPC server, D-Bus).
+- `crates/hauler-daemon`: `haulerd` (queue, SQLite store, RPC server, D-Bus; `src/bus.rs` serves `org.hauler.Hauler1` and uQ's launcher provider on the session bus).
 - `crates/hauler-cli`: `hauler`. `crates/hauler-desktop`: Kirigami UI via cxx-qt (`qml/`, `cpp/`, `src/`, `build.rs`).
 - `crates/hauler-testserver`: throttled HTTP server with Range/ETag for tests and benchmarks.
+- `uq/`: uQ desktop integration (bar widget, launcher provider, D-Bus service file), installed by the PKGBUILD; check it with `uqctl integrations check uq/` from uQ.
 - `dist/`: arch PKGBUILD, systemd units, desktop file. `scripts/`: build-appimage, build-static, install-user, bench, check-loc.
 
 ## Conventions

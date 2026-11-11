@@ -1,0 +1,10 @@
+# Installed to /usr/share/uq/launcher/hauler.provider by hauler's package.
+# A URL typed or pasted into Spotlight offers "Download with hauler". haulerd serves
+# org.uq.Launcher1.Provider at /org/uq/Launcher1 on the org.hauler.Hauler1 connection.
+[Launcher Provider]
+BusName=org.hauler.Hauler1
+Name=hauler
+# Not activatable: uQ asks haulerd only while it runs, so an idle hauler stays stopped and the
+# bar widget (requires.bus_name) stays hidden (uQ Phase 4 spec §3.1). haulerd doesn't exit when
+# idle, so starting it from every launcher open would keep it running for the whole session.
+Activatable=false

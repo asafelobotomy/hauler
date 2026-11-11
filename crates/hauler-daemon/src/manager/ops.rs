@@ -13,13 +13,20 @@ use tracing::info;
 use super::{Entry, Manager, internal, is_plain_name, now, stop};
 use crate::store::TaskSpec;
 
+/// The URL check every way of adding a download goes through (the RPC `add`
+/// the CLI and the app use, and D-Bus `Add`): an absolute http or https URL.
+pub fn check_url(url: &str) -> Result<engine::Url, String> {
+    let url = engine::Url::parse(url).map_err(|e| format!("bad URL: {e}"))?;
+    if !matches!(url.scheme(), "http" | "https") {
+        return Err("only http and https URLs are supported".into());
+    }
+    Ok(url)
+}
+
 impl Manager {
     pub fn add(&self, p: AddParams) -> Result<TaskInfo, RpcError> {
         let invalid = |m: String| RpcError::new(RpcError::INVALID_PARAMS, m);
-        let url = engine::Url::parse(&p.url).map_err(|e| invalid(format!("bad URL: {e}")))?;
-        if !matches!(url.scheme(), "http" | "https") {
-            return Err(invalid("only http and https URLs are supported".into()));
-        }
+        let url = check_url(&p.url).map_err(invalid)?;
         for (name, value) in &p.headers {
             HeaderName::from_bytes(name.as_bytes()).map_err(|e| invalid(format!("bad header name: {e}")))?;
             HeaderValue::from_str(value).map_err(|e| invalid(format!("bad header value: {e}")))?;

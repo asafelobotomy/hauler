@@ -74,7 +74,22 @@ Ctrl-C pauses `get`; running the same command again resumes it. Set `HAULER_LOG=
 - **Sleep.** While anything downloads, the daemon holds a logind sleep inhibitor, visible in `systemd-inhibit --list`.
 - **Network.** It follows NetworkManager. Downloads are held while offline, or on a metered connection unless `pause_on_metered` is off, and they resume by themselves.
 - **Logs.** Under systemd they go to the journal (`journalctl --user -u hauler`). Started by the desktop app, they go to `$XDG_STATE_HOME/hauler/haulerd.log`, with the previous run's in `haulerd.log.old`. `HAULER_LOG=debug` shows more.
+- **Session bus.** While it runs, it owns `org.hauler.Hauler1` on the session bus (see below).
 - **Idle cost.** About 11 MB of memory, and no timers run while nothing is downloading.
+
+## D-Bus and uQ
+
+While `haulerd` runs it owns `org.hauler.Hauler1` on the session bus, for desktop shells and anything else that wants a quick look at the queue (`--no-system` turns this off):
+
+- **`/org/hauler/Hauler1`, interface `org.hauler.Hauler1`.**
+  - Properties `ActiveCount u` (running), `QueuedCount u` (queued or held for the network), `BytesDone t` and `BytesTotal t`, over the downloads that are running, queued or held. `BytesTotal` is 0 while any of their sizes is unknown. `PropertiesChanged` goes out at most once a second, with only what changed.
+  - Methods `PauseAll()`, `ResumeAll()`, `Add(s url)` and `Queue() → a{sv}`. `Add` checks the URL exactly as `hauler add` does and answers `InvalidArgs` for anything but an http or https URL. `Queue` returns up to 50 unfinished downloads keyed `"000"`, `"001"`… in queue order, each an `a{sv}` of `id`, `name`, `state`, `received`, `size` (0 when unknown) and `speed`.
+  - Signal `Finished(s id, s name, b ok)` when a download completes (`ok`) or fails.
+- **`/org/uq/Launcher1`, interface `org.uq.Launcher1.Provider`.** A launcher query that is a whole http or https URL gets one row, "Download with hauler"; choosing it queues the URL.
+
+Anyone on your session bus can call these, the same trust as the socket.
+
+`uq/` holds the files that plug hauler into the [uQ](https://github.com/asafelobotomy/uq) desktop: a Downloads widget for the bar, the launcher provider, and a D-Bus service file that starts `haulerd` through `hauler.service`. The package installs them; they do nothing without uQ. See `uq/README.md`.
 
 ## Benchmarks
 
@@ -135,6 +150,7 @@ The tests cover:
 - starting over after a checksum mismatch
 - removing a download never deletes files it did not make
 - handing links from a second launch of the desktop app to the first
+- the session-bus interface and launcher provider on a private bus, including the once-a-second limit on `PropertiesChanged`
 
 ## Licence
 
