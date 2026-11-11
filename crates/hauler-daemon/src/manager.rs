@@ -19,6 +19,7 @@ use tracing::{info, warn};
 use crate::store::{Store, TaskSpec};
 
 mod ops;
+pub use ops::check_url;
 mod schedule;
 #[cfg(test)]
 mod tests;

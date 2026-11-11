@@ -20,7 +20,8 @@ struct Args {
     /// SQLite database for the queue.
     #[arg(long)]
     db: Option<PathBuf>,
-    /// Skip D-Bus sleep inhibition and network monitoring.
+    /// Skip D-Bus: sleep inhibition, network monitoring, notifications and
+    /// the org.hauler.Hauler1 session-bus interface.
     #[arg(long)]
     no_system: bool,
 }

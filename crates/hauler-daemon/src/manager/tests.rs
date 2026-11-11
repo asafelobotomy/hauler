@@ -69,3 +69,18 @@ async fn pausing_while_winding_down_stays_paused() {
         assert_eq!(m.get(id).unwrap().state, TaskState::Paused, "from {state:?}");
     }
 }
+
+#[test]
+fn only_http_and_https_urls_are_accepted() {
+    use super::check_url;
+    assert_eq!(check_url("https://example.com/a.iso").unwrap().as_str(), "https://example.com/a.iso");
+    assert_eq!(check_url("HTTP://example.com").unwrap().as_str(), "http://example.com/");
+    for bad in ["", "example.com/a.iso", "https://", "ftp://example.com/a", "file:///etc/passwd", "data:,x"] {
+        assert!(check_url(bad).is_err(), "{bad:?}");
+    }
+    assert!(check_url("ftp://example.com/a").unwrap_err().contains("only http and https"));
+    // The RPC `add` (what the CLI sends) refuses the same way.
+    let (m, _) = manager();
+    let err = m.add(AddParams { url: "ftp://example.com/a".into(), ..Default::default() }).unwrap_err();
+    assert_eq!(err.code, hauler_ipc::RpcError::INVALID_PARAMS);
+}
