@@ -11,8 +11,9 @@ installs it unconditionally; without uQ nothing reads it.
 
 Both the widget and the provider talk to `haulerd` over `org.hauler.Hauler1` on the session bus
 (see "D-Bus and uQ" in the top-level README). `haulerd` owns that name for as long as it runs, so
-the widget shows while it runs and goes when it stops. The provider is `Activatable=true`: uQ
-starts `haulerd` when Spotlight or the app menu opens, so a pasted URL finds it running.
+the widget shows while it runs and goes when it stops. The provider is not activatable: uQ
+asks it only while `haulerd` runs, so opening Spotlight never starts an idle hauler (which would
+then run, and show the widget, for the rest of the session).
 
 ## How it was tested
 

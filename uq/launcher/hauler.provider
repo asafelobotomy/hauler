@@ -4,6 +4,7 @@
 [Launcher Provider]
 BusName=org.hauler.Hauler1
 Name=hauler
-# The bus name has a session D-Bus service file (dbus/), so uQ starts haulerd when the launcher
-# opens and a pasted URL finds it running.
-Activatable=true
+# Not activatable: uQ asks haulerd only while it runs, so an idle hauler stays stopped and the
+# bar widget (requires.bus_name) stays hidden (uQ Phase 4 spec §3.1). haulerd doesn't exit when
+# idle, so starting it from every launcher open would keep it running for the whole session.
+Activatable=false
