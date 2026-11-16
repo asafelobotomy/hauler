@@ -21,7 +21,7 @@ ColumnLayout {
     visible: out.working || out.note !== null
     spacing: 2
 
-    QQC2.ProgressBar {
+    FlatBar {
         visible: out.working && out.bar
         indeterminate: true
         Layout.fillWidth: true

@@ -1,4 +1,4 @@
-// One download of the queue: icon, name, a progress bar, what it is doing, and pause or resume.
+// One download of the queue: icon, name, a progress bar (FlatBar), what it is doing, and pause or resume.
 import QtQuick
 import QtQuick.Controls as QQC2
 import QtQuick.Layouts
@@ -35,7 +35,7 @@ ColumnLayout {
                 font.bold: true
                 Layout.fillWidth: true
             }
-            QQC2.ProgressBar {
+            FlatBar {
                 objectName: "download-bar"
                 visible: row.task.state === "running" || row.task.percent >= 0
                 indeterminate: row.task.state === "running" && row.task.percent < 0

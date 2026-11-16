@@ -103,7 +103,7 @@ SettingsTab {
             highlight: tab.host ? tab.host.highlight : ""
             Layout.fillWidth: true
         }
-        QQC2.ProgressBar {
+        FlatBar {
             objectName: "space-bar"
             visible: tab.loaded && tab.storage.usedFraction >= 0
             from: 0
