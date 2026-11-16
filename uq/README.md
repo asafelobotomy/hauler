@@ -6,13 +6,13 @@ installs it unconditionally; without uQ nothing reads it.
 | File | Installed to | What it does |
 | --- | --- | --- |
 | `widgets/hauler/widget.toml`, `Widget.qml` | `/usr/share/uq/shell/widgets/hauler/` | A Downloads icon in the bar: a progress ring while anything downloads, and a popup with the queue, Pause all and Resume all |
-| `launcher/hauler.provider` | `/usr/share/uq/launcher/` | A URL typed or pasted into Spotlight offers "Download with hauler" |
+| `launcher/hauler.provider` | `/usr/share/uq/launcher/` | A URL typed or pasted into look=see>do_ offers "Download with hauler" |
 | `dbus/org.hauler.Hauler1.service` | `/usr/share/dbus-1/services/` | Lets the session bus start `haulerd`, through systemd's `hauler.service` |
 
 Both the widget and the provider talk to `haulerd` over `org.hauler.Hauler1` on the session bus
 (see "D-Bus and uQ" in the top-level README). `haulerd` owns that name for as long as it runs, so
 the widget shows while it runs and goes when it stops. The provider is not activatable: uQ
-asks it only while `haulerd` runs, so opening Spotlight never starts an idle hauler (which would
+asks it only while `haulerd` runs, so opening look=see>do_ never starts an idle hauler (which would
 then run, and show the widget, for the rest of the session).
 
 ## How it was tested

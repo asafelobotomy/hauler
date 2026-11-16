@@ -1,5 +1,5 @@
 # Installed to /usr/share/uq/launcher/hauler.provider by hauler's package.
-# A URL typed or pasted into Spotlight offers "Download with hauler". haulerd serves
+# A URL typed or pasted into look=see>do_ offers "Download with hauler". haulerd serves
 # org.uq.Launcher1.Provider at /org/uq/Launcher1 on the org.hauler.Hauler1 connection.
 [Launcher Provider]
 BusName=org.hauler.Hauler1
