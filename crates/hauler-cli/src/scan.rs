@@ -86,7 +86,7 @@ pub async fn run(args: ScanArgs) -> anyhow::Result<ExitCode> {
             if args.wait {
                 doc["results"] = results.iter().map(summary).collect();
             }
-            json::ok(doc);
+            let _ = json::ok(doc);
         } else if args.wait {
             for t in &results {
                 let r = t.scan.as_ref();
