@@ -11,6 +11,7 @@ SettingsTab {
 
     property var host
     readonly property bool configured: !!tab.host && tab.host.config !== null && tab.host.config.ok
+    readonly property var scans: Logic.scanTotals(tab.host ? tab.host.history : null)
     readonly property int holders: Logic.headerHolders(tab.host ? tab.host.history : null)
 
     title: "Security"
@@ -49,6 +50,55 @@ SettingsTab {
         Outcome {
             host: tab.host
             noteKey: "cfg:https_only"
+            Layout.fillWidth: true
+        }
+    }
+    SettingsCard {
+        title: "Antivirus"
+        iconName: "security-medium"
+        help: "oysterAV only looks. A file it flags is left where it is, and you decide in oysterAV what happens to it."
+        Layout.fillWidth: true
+
+        SwitchRow {
+            objectName: "scan-downloads"
+            settingId: "scan-downloads"
+            label: "Scan downloads with oysterAV"
+            highlight: tab.host ? tab.host.highlight : ""
+            visible: tab.configured
+            enabled: !!tab.host && !tab.host.busy
+            value: tab.configured && tab.host.setting("scan_downloads") === true
+            onChosen: v => tab.host.setConfig("scan_downloads", v, false)
+            Layout.fillWidth: true
+        }
+        UqLabel {
+            text: "Each download is scanned as soon as it completes, and a warning appears if oysterAV finds something. Needs oysterAV installed."
+            visible: tab.configured
+            opacity: 0.7
+            wrapMode: Text.Wrap
+            Layout.fillWidth: true
+        }
+        Outcome {
+            host: tab.host
+            noteKey: "cfg:scan_downloads"
+            Layout.fillWidth: true
+        }
+        UqLabel {
+            objectName: "scan-summary"
+            text: Logic.scanSummary(tab.scans)
+            visible: !!tab.host && tab.host.history !== null && tab.host.history.ok
+            wrapMode: Text.Wrap
+            Layout.fillWidth: true
+        }
+        QQC2.Button {
+            objectName: "scan-all"
+            text: "Scan finished downloads"
+            visible: tab.scans.scannable > 0
+            enabled: !!tab.host && !tab.host.busy
+            onClicked: tab.host.scanAll()
+        }
+        Outcome {
+            host: tab.host
+            noteKey: "scan"
             Layout.fillWidth: true
         }
     }

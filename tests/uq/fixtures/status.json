@@ -5,7 +5,9 @@
     "paused": 2,
     "queued": 0,
     "running": 1,
-    "total": 8
+    "total": 8,
+    "scanning": 0,
+    "threats": 1
   },
   "network": {
     "metered": false,

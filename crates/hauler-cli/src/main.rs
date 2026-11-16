@@ -8,6 +8,7 @@ mod get;
 mod json;
 mod queue;
 mod remote;
+mod scan;
 mod storage;
 mod tidy;
 
@@ -42,6 +43,7 @@ enum Command {
     Config(config::ConfigArgs),
     Storage(storage::StorageArgs),
     Cleanup(storage::CleanupArgs),
+    Scan(scan::ScanArgs),
 }
 
 pub(crate) fn parse_size(s: &str) -> Result<u64, String> {
@@ -87,6 +89,7 @@ async fn main() -> anyhow::Result<ExitCode> {
         Command::Config(args) => config::run(args).await,
         Command::Storage(args) => storage::storage(args).await,
         Command::Cleanup(args) => storage::cleanup(args).await,
+        Command::Scan(args) => scan::run(args).await,
     }
 }
 

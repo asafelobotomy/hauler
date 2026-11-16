@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use clap::Args;
-use hauler_ipc::{TaskInfo, TaskState};
+use hauler_ipc::{ScanState, TaskInfo, TaskState};
 use indicatif::HumanBytes;
 use serde::Serialize;
 use serde_json::json;
@@ -107,6 +107,8 @@ pub async fn status(args: StatusArgs) -> anyhow::Result<ExitCode> {
                     "paused": count(&[TaskState::Paused]),
                     "completed": count(&[TaskState::Completed]),
                     "failed": count(&[TaskState::Failed]),
+                    "scanning": tasks.iter().filter(|t| t.scan.as_ref().is_some_and(|r| r.state == ScanState::Scanning)).count(),
+                    "threats": tasks.iter().filter(|t| t.scan.as_ref().is_some_and(|r| r.state == ScanState::Threat)).count(),
                 },
             })));
         }

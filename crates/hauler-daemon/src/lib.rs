@@ -11,6 +11,7 @@ pub mod bus;
 mod desktop;
 pub mod manager;
 mod rpc;
+mod scan;
 mod socket;
 pub mod store;
 mod system;

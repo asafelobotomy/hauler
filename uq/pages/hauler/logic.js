@@ -8,7 +8,7 @@ var MAX_TEXT = 300;
 var WORKING = "Working…";
 var APP_ID = "hauler.desktop";
 
-var SETTING_KEYS = "^(max_active|connections|global_limit|download_dir|pause_on_metered|history_days|scrub_headers|https_only|min_free)$";
+var SETTING_KEYS = "^(max_active|connections|global_limit|download_dir|pause_on_metered|history_days|scrub_headers|https_only|min_free|scan_downloads)$";
 var ID = "^[1-9][0-9]{0,17}$";
 var STATE = "^(finished|completed|failed)$";
 var URL_PATTERN = "^https?://[^\\x00-\\x20\\x7f]{1,1000}$";
@@ -21,6 +21,7 @@ var PATTERNS = {
     "add-url": [URL_PATTERN],
     "pause-one": [ID],
     "resume-one": [ID],
+    "scan-one": [ID],
     "remove-one": [ID],
     "remove-one-files": [ID],
     "preview-remove": [ID],
@@ -265,8 +266,48 @@ function row(t, nowMs) {
         path: t.path ? clip(t.path) : "",
         fileExists: t.file_exists === true,
         hasHeaders: t.has_headers === true,
-        resumable: t.resumable
+        resumable: t.resumable,
+        scan: isObject(t.scan) ? { state: String(t.scan.state), detail: clip(t.scan.detail || "") } : null
     };
+}
+
+/// What oysterAV said about a finished download, in words ("" when it was never scanned).
+function scanText(r) {
+    if (!r.scan)
+        return "";
+    switch (r.scan.state) {
+    case "scanning":
+        return "oysterAV is scanning it…";
+    case "clean":
+        return "oysterAV found no threats.";
+    case "threat":
+        return "oysterAV found " + (r.scan.detail || "a threat") + ". Don't open it; see oysterAV for what to do.";
+    default:
+        return "oysterAV couldn't scan it" + (r.scan.detail ? ": " + r.scan.detail : ".");
+    }
+}
+
+/// Counts over the completed downloads: how many oysterAV found something in, is looking at, or hasn't seen.
+function scanTotals(list) {
+    var t = { threats: 0, scanning: 0, clean: 0, errors: 0, unscanned: 0, scannable: 0 };
+    (list && list.ok ? list.rows : []).forEach(function (r) {
+        if (r.state !== "completed")
+            return;
+        if (!r.scan) {
+            t.unscanned++;
+        } else if (r.scan.state === "threat") {
+            t.threats++;
+        } else if (r.scan.state === "scanning") {
+            t.scanning++;
+        } else if (r.scan.state === "clean") {
+            t.clean++;
+        } else {
+            t.errors++;
+        }
+        if (r.fileExists)
+            t.scannable++;
+    });
+    return t;
 }
 
 /// {ok, rows, problem}: every download `hauler list --json` printed, as rows.
@@ -502,4 +543,27 @@ function forgottenLine(result) {
     if (!env.ok || !isObject(env.output))
         return "Done.";
     return "Forgot the saved logins of " + plural(Number(env.output.forgotten) || 0, "download", "downloads") + ".";
+}
+
+/// The note after "Scan all": how many scans were asked for.
+function scanStartedLine(result) {
+    var o = envelope(result).output;
+    var n = o && Array.isArray(o.started) ? o.started.length : 0;
+    return n === 0 ? "Nothing to scan: no finished download has its file here." : "Asked oysterAV to scan " + plural(n, "download", "downloads") + ". The answers show in History.";
+}
+
+/// One sentence over every finished download: what oysterAV has said.
+function scanSummary(t) {
+    var parts = [];
+    if (t.threats > 0)
+        parts.push(plural(t.threats, "download has", "downloads have") + " a threat");
+    if (t.clean > 0)
+        parts.push(plural(t.clean, "is", "are") + " clean");
+    if (t.scanning > 0)
+        parts.push(plural(t.scanning, "is", "are") + " being scanned");
+    if (t.errors > 0)
+        parts.push(plural(t.errors, "couldn't be", "couldn't be") + " scanned");
+    if (t.unscanned > 0)
+        parts.push(plural(t.unscanned, "was never", "were never") + " scanned");
+    return parts.length === 0 ? "No finished downloads yet." : parts.join(", ") + ".";
 }

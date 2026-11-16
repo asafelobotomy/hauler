@@ -23,7 +23,8 @@ Kirigami.ScrollablePage {
                     connections: connections.value,
                     global_limit: limit.value * 1024,
                     download_dir: dirField.text,
-                    pause_on_metered: metered.checked
+                    pause_on_metered: metered.checked,
+                    scan_downloads: antivirus.checked
                 }));
                 applicationWindow().pageStack.pop();
             }
@@ -120,6 +121,21 @@ Kirigami.ScrollablePage {
         }
         Hint {
             text: qsTr("Downloads continue by themselves once you are on an unmetered network again.")
+        }
+
+        Kirigami.Separator {
+            Kirigami.FormData.isSection: true
+            Kirigami.FormData.label: qsTr("Security")
+        }
+        QQC2.Switch {
+            id: antivirus
+
+            Kirigami.FormData.label: qsTr("Antivirus:")
+            text: qsTr("Scan downloads with oysterAV")
+            checked: page.settings.scan_downloads === true
+        }
+        Hint {
+            text: qsTr("Each download is scanned when it completes. oysterAV only looks: a flagged file stays where it is, and you decide what happens to it. Needs oysterAV installed.")
         }
     }
 

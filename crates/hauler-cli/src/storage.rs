@@ -199,6 +199,7 @@ mod tests {
             added_at: 0,
             finished_at: None,
             has_headers: false,
+            scan: None,
         };
         let dirs = folders(std::slice::from_ref(&task), "/not/a/folder");
         assert_eq!(dirs.len(), 1, "a missing folder is skipped");

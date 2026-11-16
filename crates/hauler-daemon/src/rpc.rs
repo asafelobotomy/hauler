@@ -106,7 +106,7 @@ async fn forward_events(
 
 /// Handle one request line. Returns the reply (none for notifications) and
 /// whether the client asked for events.
-async fn dispatch(manager: &Manager, line: &str) -> (Option<String>, bool) {
+async fn dispatch(manager: &Arc<Manager>, line: &str) -> (Option<String>, bool) {
     let req: Request = match serde_json::from_str(line) {
         Ok(r) => r,
         Err(e) => return (Some(reply(Value::Null, Err(RpcError::new(RpcError::PARSE, e.to_string())))), false),
@@ -121,7 +121,7 @@ async fn dispatch(manager: &Manager, line: &str) -> (Option<String>, bool) {
     (id.map(|id| reply(id, result)), subscribe)
 }
 
-async fn call(m: &Manager, method: &str, params: Value) -> Result<Value, RpcError> {
+async fn call(m: &Arc<Manager>, method: &str, params: Value) -> Result<Value, RpcError> {
     match method {
         method::ADD => ok(m.add(parse::<AddParams>(params)?)),
         method::LIST => ok(Ok(m.list())),
@@ -145,6 +145,7 @@ async fn call(m: &Manager, method: &str, params: Value) -> Result<Value, RpcErro
         method::GET_SETTINGS => ok(Ok(m.settings())),
         method::SET_SETTINGS => ok(m.set_settings(parse::<SettingsPatch>(params)?)),
         method::STATUS => ok(Ok(m.status())),
+        method::SCAN => ok(m.scan(parse::<IdParams>(params)?.id)),
         method::FORGET_HEADERS => ok(Ok(m.forget_headers())),
         method::SEGMENTS => ok(m.segments(parse::<IdParams>(params)?.id)),
         method::SUBSCRIBE => Ok(Value::Bool(true)),

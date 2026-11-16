@@ -136,6 +136,11 @@ impl Client {
         self.call(method::STATUS, Value::Null).await
     }
 
+    /// Start a scan of a completed download's file with oysterAV; answers the task as it then stands.
+    pub async fn scan(&mut self, id: TaskId) -> Result<TaskInfo, ClientError> {
+        self.call(method::SCAN, IdParams { id }).await
+    }
+
     pub async fn forget_headers(&mut self) -> Result<u32, ClientError> {
         self.call(method::FORGET_HEADERS, Value::Null).await
     }

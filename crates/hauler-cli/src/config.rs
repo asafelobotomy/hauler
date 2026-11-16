@@ -47,7 +47,7 @@ enum ConfigCommand {
     /// Change one setting.
     Set {
         /// One of: max_active, connections, global_limit, download_dir, pause_on_metered, history_days,
-        /// scrub_headers, https_only, min_free.
+        /// scrub_headers, https_only, min_free, scan_downloads.
         key: String,
         value: String,
         /// Print what would change, and change nothing.
@@ -69,6 +69,7 @@ const SCHEMA: &[(&str, &str, Option<u64>, Option<u64>)] = &[
     ("scrub_headers", "bool", None, None),
     ("https_only", "bool", None, None),
     ("min_free", "size", Some(0), None),
+    ("scan_downloads", "bool", None, None),
 ];
 
 pub async fn run(args: ConfigArgs) -> anyhow::Result<ExitCode> {
@@ -90,6 +91,7 @@ fn values(s: &Settings) -> Value {
         "scrub_headers": s.scrub_headers,
         "https_only": s.https_only,
         "min_free": s.min_free,
+        "scan_downloads": s.scan_downloads,
     })
 }
 
@@ -115,6 +117,7 @@ async fn show(as_json: bool) -> anyhow::Result<ExitCode> {
     println!("scrub_headers     {}", s.scrub_headers);
     println!("https_only        {}", s.https_only);
     println!("min_free          {}", size(s.min_free));
+    println!("scan_downloads    {}", s.scan_downloads);
     Ok(ExitCode::SUCCESS)
 }
 
@@ -152,6 +155,7 @@ pub fn patch_for(key: &str, value: &str) -> anyhow::Result<SettingsPatch> {
         "pause_on_metered" => p.pause_on_metered = Some(parse_bool(value)?),
         "scrub_headers" => p.scrub_headers = Some(parse_bool(value)?),
         "https_only" => p.https_only = Some(parse_bool(value)?),
+        "scan_downloads" => p.scan_downloads = Some(parse_bool(value)?),
         "download_dir" => {
             let dir = std::path::absolute(value)?;
             if !dir.is_dir() {
@@ -292,6 +296,7 @@ mod tests {
             added_at: 0,
             finished_at: finished_days_ago.map(|d| 1_000_000 - d * 86_400),
             has_headers: headers,
+            scan: None,
         }
     }
 
@@ -322,6 +327,7 @@ mod tests {
             scrub_headers: true,
             https_only: false,
             min_free: 0,
+            scan_downloads: false,
         };
         let shown = values(&s);
         let mut keys: Vec<_> = shown.as_object().unwrap().keys().cloned().collect();

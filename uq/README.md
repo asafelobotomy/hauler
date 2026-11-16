@@ -25,8 +25,9 @@ Five tabs, followed live through haulerd's D-Bus signals, so it shows what Haule
   each after a plan of exactly what goes. Set how long the list is kept.
 - **Storage.** The download folder, free space, what Hauler's downloads take, a reserve of space to keep free, and
   unfinished leftovers nothing is working on, which can be deleted after a plan.
-- **Security.** Only allow https; forget saved cookies and logins when a download completes, or now; and what is
-  always on.
+- **Security.** Only allow https; scan downloads with oysterAV as they complete (and scan the finished ones now);
+  forget saved cookies and logins when a download completes, or now; and what is always on. A download oysterAV flags is
+  marked in History and a banner tops the page; History has a Scan button per download.
 - **Preferences.** Downloads at once, connections, the speed limit for all, and pausing on a metered connection.
 
 It runs only the `hauler` command line, as you (`hauler status|list|storage|config show --json`, and `--dry-run --json`

@@ -48,6 +48,9 @@ pub mod qobject {
         fn set_limit(self: &Backend, id: i64, bytes_per_sec: f64);
         #[qinvokable]
         fn set_priority(self: &Backend, id: i64, priority: i32);
+        /// Have oysterAV scan a completed download's file; the verdict comes back with the task.
+        #[qinvokable]
+        fn scan(self: &Backend, id: i64);
         #[qinvokable]
         fn pause_all(self: &Backend);
         #[qinvokable]
@@ -111,6 +114,7 @@ enum Command {
     Remove(TaskId, bool),
     Limit(TaskId, u64),
     Priority(TaskId, i32),
+    Scan(TaskId),
     PauseAll,
     ResumeAll,
     Settings(SettingsPatch),
@@ -176,6 +180,10 @@ impl Backend {
 
     fn set_priority(&self, id: i64, priority: i32) {
         self.send(Command::Priority(id, priority));
+    }
+
+    fn scan(&self, id: i64) {
+        self.send(Command::Scan(id));
     }
 
     fn pause_all(&self) {
@@ -314,6 +322,7 @@ async fn execute(qt: &CxxQtThread<Backend>, client: &mut Client, cmd: Command) -
         Command::Remove(id, delete) => client.remove(id, delete).await?,
         Command::Limit(id, rate) => drop(client.set_limit(id, rate).await?),
         Command::Priority(id, p) => drop(client.set_priority(id, p).await?),
+        Command::Scan(id) => drop(client.scan(id).await?),
         Command::PauseAll => drop(client.pause_all().await?),
         Command::ResumeAll => drop(client.resume_all().await?),
         Command::Settings(patch) => drop(client.set_settings(&patch).await?),

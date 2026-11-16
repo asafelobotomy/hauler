@@ -42,6 +42,20 @@ ColumnLayout {
                 Layout.fillWidth: true
             }
             UqLabel {
+                id: scanNote
+                objectName: "history-scan"
+                text: Logic.scanText(row.task)
+                visible: text !== ""
+                wrapMode: Text.Wrap
+                Layout.fillWidth: true
+            }
+            Binding {
+                target: scanNote
+                property: "color"
+                value: row.host ? row.host.errorColor() : "red"
+                when: !!row.task.scan && row.task.scan.state === "threat"
+            }
+            UqLabel {
                 id: problem
                 objectName: "history-problem"
                 text: row.task.state === "failed" ? row.task.error : "The file is no longer in " + row.task.dir + "."
@@ -55,6 +69,20 @@ ColumnLayout {
                 value: row.host ? row.host.errorColor() : "red"
                 when: row.task.state === "failed"
             }
+        }
+        QQC2.Button {
+            objectName: "scan-" + row.task.id
+            text: "Scan"
+            visible: row.task.state === "completed" && row.task.fileExists && !row.task.scan
+            enabled: !!row.host && !row.host.busy
+            onClicked: row.host.scanOne(row.task.id)
+        }
+        QQC2.Button {
+            objectName: "rescan-" + row.task.id
+            text: "Scan again"
+            visible: row.task.state === "completed" && row.task.fileExists && !!row.task.scan && row.task.scan.state !== "scanning"
+            enabled: !!row.host && !row.host.busy
+            onClicked: row.host.scanOne(row.task.id)
         }
         QQC2.Button {
             objectName: "remove-" + row.task.id

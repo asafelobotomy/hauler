@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use futures_util::StreamExt;
 use hauler_engine::Url;
-use hauler_ipc::{Event, TaskId, TaskInfo, TaskState};
+use hauler_ipc::{Event, ScanState, TaskId, TaskInfo, TaskState};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
@@ -167,7 +167,13 @@ pub async fn run(manager: Arc<Manager>, shutdown: CancellationToken) {
         };
         match event {
             Event::TaskAdded { task } | Event::TaskUpdated { task } => {
-                let before = tasks.insert(task.id, task.clone()).map(|t| t.state);
+                let previous = tasks.insert(task.id, task.clone());
+                let before = previous.as_ref().map(|t| t.state);
+                let found = task.scan.as_ref().is_some_and(|r| r.state == ScanState::Threat)
+                    && !previous.as_ref().and_then(|t| t.scan.as_ref()).is_some_and(|r| r.state == ScanState::Threat);
+                if found && let Some(n) = &notifier {
+                    notify_threat(n, &task).await;
+                }
                 if let Some(t) = &tracker {
                     update_view(&conn, t, &manager, &task, &mut views).await;
                 } else if before != Some(task.state)
@@ -328,6 +334,15 @@ async fn notify_finished(n: &NotificationsProxy<'_>, task: &TaskInfo) -> Option<
     let icon = if task.state == TaskState::Completed { "folder-download" } else { "dialog-error" };
     let id = n.notify("Hauler", 0, icon, summary, &body, actions, HashMap::new(), -1).await.ok()?;
     Some((id, path))
+}
+
+/// oysterAV found something in a finished download. No "open" action: the file is left alone, and what to do
+/// with it is decided in oysterAV.
+async fn notify_threat(n: &NotificationsProxy<'_>, task: &TaskInfo) {
+    let name = task.name.clone().unwrap_or_else(|| task.url.clone());
+    let what = task.scan.as_ref().map(|r| r.detail.as_str()).filter(|d| !d.is_empty()).unwrap_or("a threat");
+    let body = format!("{name}: oysterAV found {what}. Don't open it.");
+    let _ = n.notify("Hauler", 0, "dialog-warning", "Download may be harmful", &body, &[], HashMap::new(), -1).await;
 }
 
 async fn open_path(conn: &zbus::Connection, path: &Path, action: &str) {

@@ -176,6 +176,14 @@ SettingsPage {
         page.write("forget", "forget-headers", [], null, Logic.forgottenLine);
     }
 
+    function scanOne(id) {
+        page.write("row:" + id, "scan-one", [id], null, "Asked oysterAV to scan it. The answer shows here.");
+    }
+
+    function scanAll() {
+        page.write("scan", "scan-all", [], null, r => Logic.scanStartedLine(r));
+    }
+
     function cleanLeftovers() {
         page.write("leftovers", "cleanup", [], null, Logic.cleanedLine);
     }
@@ -220,7 +228,16 @@ SettingsPage {
         }
     ]
 
+    readonly property var scanTotals: Logic.scanTotals(page.history)
+
     banners: [
+        ErrorCard {
+            objectName: "scan-threats"
+            visible: page.scanTotals.threats > 0
+            title: "oysterAV found something in " + Logic.plural(page.scanTotals.threats, "download", "downloads")
+            detail: "Don't open them. They are marked in History; oysterAV can move them away."
+            Layout.fillWidth: true
+        },
         ErrorCard {
             objectName: "daemon-down"
             visible: page.daemonDown

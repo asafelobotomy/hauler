@@ -30,7 +30,10 @@ ListModel {
             limit: t.limit,
             priority: t.priority,
             resumable: t.resumable !== false,
-            error: t.error ?? ""
+            error: t.error ?? "",
+            // What oysterAV said about the finished file: "", scanning, clean, threat or error.
+            scanState: t.scan?.state ?? "",
+            scanDetail: t.scan?.detail ?? ""
         };
     }
 

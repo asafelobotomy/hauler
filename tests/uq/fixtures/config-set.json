@@ -9,6 +9,7 @@
     "max_active": 3,
     "min_free": 0,
     "pause_on_metered": true,
-    "scrub_headers": false
+    "scrub_headers": false,
+    "scan_downloads": false
   }
 }

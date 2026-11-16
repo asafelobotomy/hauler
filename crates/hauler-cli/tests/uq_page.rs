@@ -118,6 +118,8 @@ const FIXTURES: &[(&str, &str)] = &[
     ("preview-forget-headers", "preview-forget-headers.json"),
     ("preview-cleanup", "preview-cleanup.json"),
     ("config-set", "config-set.json"),
+    ("scan-one", "scan-one.json"),
+    ("scan-all", "scan-all.json"),
     ("forget-headers", "forget-headers.json"),
     ("remove-one", "remove-one.json"),
     ("clear-history", "clear-history.json"),
@@ -147,6 +149,19 @@ async fn every_command_of_the_page_runs_and_prints_what_the_fixtures_say() {
         download_dir: downloads.clone(),
         system_integration: false,
     };
+    // oysterAV's part, stood in for: everything is clean.
+    let fake = dir.join("oyst-cli");
+    std::fs::write(
+        &fake,
+        "#!/bin/sh\necho '{\"event\":\"result\",\"clean\":true,\"findings\":[],\"pack_errors\":[]}'\n",
+    )
+    .unwrap();
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&fake, std::fs::Permissions::from_mode(0o755)).unwrap();
+    }
+    // SAFETY: this test binary has one test, so nothing else reads the environment meanwhile.
+    unsafe { std::env::set_var("HAULER_OYST_CLI", &fake) };
     let daemon = tokio::spawn(run(config, stop.clone()));
     let mut client = loop {
         match Client::connect(&socket).await {
@@ -183,6 +198,13 @@ async fn every_command_of_the_page_runs_and_prints_what_the_fixtures_say() {
         }
     }
     assert_eq!(client.get(done.id).await.unwrap().state, TaskState::Completed);
+    client.scan(done.id).await.unwrap();
+    for _ in 0..300 {
+        if client.get(done.id).await.unwrap().scan.is_some_and(|r| r.state != hauler_ipc::ScanState::Scanning) {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
     assert_eq!(client.get(failed.id).await.unwrap().state, TaskState::Failed);
     std::fs::write(downloads.join("stray.bin.part"), vec![0u8; 4096]).unwrap();
     std::fs::write(

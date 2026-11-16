@@ -7,7 +7,7 @@
 use std::path::Path;
 use std::sync::Mutex;
 
-use hauler_ipc::{Settings, TaskId, TaskInfo, TaskState};
+use hauler_ipc::{ScanReport, ScanState, Settings, TaskId, TaskInfo, TaskState};
 use rusqlite::{Connection, OptionalExtension, params};
 
 /// Options a task keeps across restarts that are not part of [`TaskInfo`].
@@ -17,6 +17,19 @@ pub struct TaskSpec {
     pub headers: Vec<(String, String)>,
     pub checksum: Option<String>,
     pub connections: Option<u16>,
+}
+
+/// Databases made before scans existed lack the scan columns.
+fn migrate(conn: &Connection) -> rusqlite::Result<()> {
+    let has_scan = conn.prepare("SELECT 1 FROM pragma_table_info('tasks') WHERE name = 'scan_state'")?.exists([])?;
+    if !has_scan {
+        conn.execute_batch(
+            "ALTER TABLE tasks ADD COLUMN scan_state TEXT;
+             ALTER TABLE tasks ADD COLUMN scan_detail TEXT;
+             ALTER TABLE tasks ADD COLUMN scan_at INTEGER;",
+        )?;
+    }
+    Ok(())
 }
 
 pub struct Store {
@@ -40,7 +53,10 @@ CREATE TABLE IF NOT EXISTS tasks (
     resumable   INTEGER,
     error       TEXT,
     added_at    INTEGER NOT NULL,
-    finished_at INTEGER
+    finished_at INTEGER,
+    scan_state  TEXT,
+    scan_detail TEXT,
+    scan_at     INTEGER
 );
 CREATE TABLE IF NOT EXISTS settings (
     key   TEXT PRIMARY KEY,
@@ -60,6 +76,7 @@ impl Store {
         conn.pragma_update(None, "journal_mode", "WAL")?;
         conn.pragma_update(None, "synchronous", "NORMAL")?;
         conn.execute_batch(SCHEMA)?;
+        migrate(&conn)?;
         Ok(Self { conn: Mutex::new(conn) })
     }
 
@@ -94,7 +111,8 @@ impl Store {
     pub fn update(&self, info: &TaskInfo, spec: &TaskSpec) -> rusqlite::Result<()> {
         self.conn.lock().unwrap().execute(
             "UPDATE tasks SET filename = ?2, speed_limit = ?3, priority = ?4, state = ?5, size = ?6,
-                 received = ?7, resumable = ?8, error = ?9, finished_at = ?10
+                 received = ?7, resumable = ?8, error = ?9, finished_at = ?10,
+                 scan_state = ?11, scan_detail = ?12, scan_at = ?13
              WHERE id = ?1",
             params![
                 info.id,
@@ -107,6 +125,9 @@ impl Store {
                 info.resumable,
                 info.error,
                 info.finished_at,
+                info.scan.as_ref().map(|r| r.state.as_str()),
+                info.scan.as_ref().map(|r| r.detail.as_str()),
+                info.scan.as_ref().map(|r| r.at),
             ],
         )?;
         Ok(())
@@ -140,13 +161,19 @@ impl Store {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
             "SELECT id, url, dir, filename, headers, checksum, connections, speed_limit, priority, state,
-                    size, received, resumable, error, added_at, finished_at
+                    size, received, resumable, error, added_at, finished_at, scan_state, scan_detail, scan_at
              FROM tasks ORDER BY id",
         )?;
         let rows = stmt.query_map([], |r| {
             let filename: Option<String> = r.get(3)?;
             let headers: String = r.get(4)?;
             let state: String = r.get(9)?;
+            let scan_state: Option<String> = r.get(16)?;
+            let scan = scan_state.as_deref().and_then(ScanState::parse).map(|state| ScanReport {
+                state,
+                detail: r.get::<_, Option<String>>(17).ok().flatten().unwrap_or_default(),
+                at: r.get::<_, Option<i64>>(18).ok().flatten().unwrap_or(0),
+            });
             let info = TaskInfo {
                 id: r.get(0)?,
                 url: r.get(1)?,
@@ -164,6 +191,7 @@ impl Store {
                 added_at: r.get(14)?,
                 finished_at: r.get(15)?,
                 has_headers: headers != "[]",
+                scan,
             };
             let spec = TaskSpec {
                 filename,
@@ -215,6 +243,7 @@ mod tests {
             added_at: 1,
             finished_at: None,
             has_headers: false,
+            scan: None,
         }
     }
 
@@ -267,6 +296,7 @@ mod tests {
             scrub_headers: true,
             https_only: false,
             min_free: 0,
+            scan_downloads: true,
         };
         store.save_settings(&settings).unwrap();
         assert_eq!(store.load_settings().unwrap(), Some(settings));

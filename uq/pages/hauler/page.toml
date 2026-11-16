@@ -13,7 +13,7 @@ name = "Downloads"
 icon = "folder-download"
 category = "apps"
 qml = "Page.qml"
-keywords = ["hauler", "downloads", "download manager", "history", "storage", "disk", "https", "cookies", "privacy", "speed limit"]
+keywords = ["hauler", "downloads", "download manager", "history", "storage", "disk", "https", "cookies", "privacy", "speed limit", "antivirus", "oysterav", "scan"]
 
 [[setting]]
 id = "now"
@@ -59,6 +59,11 @@ keywords = ["part", "partial", "clean up", "orphan"]
 id = "https-only"
 label = "Only allow https"
 keywords = ["http", "insecure", "plain", "encrypted", "redirect"]
+
+[[setting]]
+id = "scan-downloads"
+label = "Scan downloads with oysterAV"
+keywords = ["antivirus", "virus", "malware", "oysterav", "scan", "threat", "security"]
 
 [[setting]]
 id = "saved-logins"
@@ -122,7 +127,7 @@ id = "preview-config"
 argv = ["/usr/bin/hauler", "config", "set", "--dry-run", "--json"]
 output = "json"
 timeout_ms = 10000
-args = [{ name = "key", pattern = '^(max_active|connections|global_limit|download_dir|pause_on_metered|history_days|scrub_headers|https_only|min_free)$' }, { name = "value", pattern = '^[^\x00-\x1f\x7f]{0,600}$' }]
+args = [{ name = "key", pattern = '^(max_active|connections|global_limit|download_dir|pause_on_metered|history_days|scrub_headers|https_only|min_free|scan_downloads)$' }, { name = "value", pattern = '^[^\x00-\x1f\x7f]{0,600}$' }]
 
 [[command]]
 id = "preview-remove"
@@ -208,7 +213,7 @@ id = "config-set"
 argv = ["/usr/bin/hauler", "config", "set", "--json"]
 output = "json"
 timeout_ms = 10000
-args = [{ name = "key", pattern = '^(max_active|connections|global_limit|download_dir|pause_on_metered|history_days|scrub_headers|https_only|min_free)$' }, { name = "value", pattern = '^[^\x00-\x1f\x7f]{0,600}$' }]
+args = [{ name = "key", pattern = '^(max_active|connections|global_limit|download_dir|pause_on_metered|history_days|scrub_headers|https_only|min_free|scan_downloads)$' }, { name = "value", pattern = '^[^\x00-\x1f\x7f]{0,600}$' }]
 
 # The same, for a change that would remove history or forget saved logins: the plan comes first.
 [[command]]
@@ -216,9 +221,26 @@ id = "config-set-confirmed"
 argv = ["/usr/bin/hauler", "config", "set", "--json"]
 output = "json"
 timeout_ms = 10000
-args = [{ name = "key", pattern = '^(max_active|connections|global_limit|download_dir|pause_on_metered|history_days|scrub_headers|https_only|min_free)$' }, { name = "value", pattern = '^[^\x00-\x1f\x7f]{0,600}$' }]
+args = [{ name = "key", pattern = '^(max_active|connections|global_limit|download_dir|pause_on_metered|history_days|scrub_headers|https_only|min_free|scan_downloads)$' }, { name = "value", pattern = '^[^\x00-\x1f\x7f]{0,600}$' }]
 confirm = "Apply the change to %s?"
 preview = "preview-config"
+
+# ---- Scanning with oysterAV (it only looks: nothing is moved or deleted) ----------------------------
+
+# Asks haulerd to have oysterAV scan one finished download; the verdict arrives with the next list.
+[[command]]
+id = "scan-one"
+argv = ["/usr/bin/hauler", "scan", "--json"]
+output = "json"
+timeout_ms = 10000
+args = [{ name = "id", pattern = '^[1-9][0-9]{0,17}$' }]
+
+# The same for every finished download whose file is still there.
+[[command]]
+id = "scan-all"
+argv = ["/usr/bin/hauler", "scan", "--all", "--json"]
+output = "json"
+timeout_ms = 20000
 
 # ---- Tidying: every one shows what goes before it goes; none can be forced --------------------------
 
