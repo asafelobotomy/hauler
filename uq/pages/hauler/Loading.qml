@@ -14,7 +14,7 @@ ColumnLayout {
 
     spacing: 4
 
-    QQC2.ProgressBar {
+    FlatBar {
         visible: load.loading
         indeterminate: true
         Layout.fillWidth: true
