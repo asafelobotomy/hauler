@@ -55,12 +55,22 @@ hauler config set history_days 30 --dry-run       # change one setting; --dry-ru
 hauler forget-headers                             # drop the saved cookies of completed downloads
 hauler storage --json                             # download folder, free space, what hauler's downloads take
 hauler cleanup --dry-run                          # unfinished downloads nothing is working on and no queue entry owns
+hauler scan --all                                 # have oysterAV scan every finished download; --wait stays for the verdicts
 ```
 
 Settings, besides the ones above: `history_days` (forget finished downloads after this many days; 0 keeps them),
 `scrub_headers` (drop a download's saved cookies and headers when it completes; on by default), `https_only` (refuse
 http links, and downloads whose server redirects to http), and `min_free` (refuse a download that would leave less than
 this much free on the disk, like `5G`; 0 is no reserve).
+
+### Scanning with oysterAV
+
+With [oysterAV](https://github.com/asafelobotomy/oysterAV) installed, `hauler config set scan_downloads on` has the
+daemon run `oyst-cli scan <file> --ndjson` on each download as it completes (and `hauler scan <id>` does it on
+request). The verdict (`clean`, `threat` with the threat's name, or `error`) is kept with the download, shows in
+`hauler list`, the window, the uQ Settings page and a desktop notification, and survives restarts. Scanning only looks:
+a flagged file stays where it is, and quarantining it is done in oysterAV. If oysterAV is busy with another job, hauler
+asks again a few times.
 
 Standalone, without the daemon:
 

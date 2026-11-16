@@ -67,6 +67,7 @@ impl Manager {
             added_at: now(),
             finished_at: None,
             has_headers: false,
+            scan: None,
         };
         let spec = TaskSpec {
             filename: info.name.clone(),
@@ -254,6 +255,9 @@ impl Manager {
         }
         if let Some(v) = patch.https_only {
             s.https_only = v;
+        }
+        if let Some(v) = patch.scan_downloads {
+            s.scan_downloads = v;
         }
         if let Some(v) = patch.min_free {
             s.min_free = v;

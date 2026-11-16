@@ -152,7 +152,7 @@ test("config-set: every key hauler lists is accepted by the manifest's key patte
   for (const k of keys) assert.ok(pattern.test(k), k);
   assert.ok(!pattern.test("max_active2") && !pattern.test("x_max_active"));
   // the preferences tab covers the four settings that have no other home
-  const elsewhere = ["download_dir", "history_days", "scrub_headers", "https_only", "min_free"];
+  const elsewhere = ["download_dir", "history_days", "scrub_headers", "https_only", "min_free", "scan_downloads"];
   assert.deepEqual(plain(logic.PREFS.map((p) => p.key)).concat(elsewhere).sort(), plain(keys).sort());
 });
 
@@ -348,4 +348,40 @@ test("helpers: bytes, age, plural, clip, icons", () => {
   assert.equal(logic.iconFor("a.ISO"), "media-optical");
   assert.equal(logic.iconFor("a.tar.zst"), "package-x-generic");
   assert.equal(logic.iconFor("readme"), "text-x-generic");
+});
+
+// ---- oysterAV scanning ---------------------------------------------------------------------------------------
+
+test("scanning: rows carry the verdict, and the words never hide a threat", () => {
+  const rows = plain(logic.parseList(ok(fixture("history.json")), NOW).rows);
+  const completed = rows.filter((r) => r.state === "completed");
+  assert.equal(completed[0].scan.state, "clean");
+  assert.equal(logic.scanText(completed[0]), "oysterAV found no threats.");
+  const bad = completed.find((r) => r.scan && r.scan.state === "threat");
+  assert.match(logic.scanText(bad), /oysterAV found Win\.Test\.EICAR_HDB-1\. Don't open it/);
+  assert.equal(logic.scanText({ scan: null }), "");
+  assert.match(logic.scanText({ scan: { state: "error", detail: "oysterAV is not installed" } }), /couldn't scan it: oysterAV is not installed/);
+  assert.equal(logic.scanText({ scan: { state: "scanning", detail: "" } }), "oysterAV is scanning it…");
+});
+
+test("scanning: totals count completed downloads only, and say what is left to scan", () => {
+  const t = plain(logic.scanTotals(logic.parseList(ok(fixture("history.json")), NOW)));
+  assert.equal(t.threats, 1);
+  assert.equal(t.clean, 1);
+  assert.equal(t.scanning, 0);
+  assert.ok(t.scannable >= 1);
+  assert.match(logic.scanSummary(t), /1 download has a threat, 1 is clean/);
+  assert.equal(logic.scanSummary(logic.scanTotals(null)), "No finished downloads yet.");
+});
+
+test("scanning: scan-one takes only an id, and the page has the buttons and the switch", () => {
+  assert.equal(logic.argsProblem("scan-one", ["3"]), "");
+  assert.notEqual(logic.argsProblem("scan-one", ["--all"]), "");
+  assert.notEqual(logic.argsProblem("scan-one", []), "");
+  assert.deepEqual(plain(command("scan-all").args ?? []), []);
+  assert.ok(command("scan-one").argv.includes("--json") && command("scan-all").argv.includes("--all"));
+  assert.ok(manifest.setting.some((s) => s.id === "scan-downloads"));
+  assert.match(allQml, /objectName: "scan-all"/);
+  assert.match(logic.scanStartedLine(ok({ ok: true, started: [1, 2], refused: [] })), /Asked oysterAV to scan 2 downloads/);
+  assert.match(logic.scanStartedLine(ok({ ok: true, started: [], refused: [] })), /Nothing to scan/);
 });

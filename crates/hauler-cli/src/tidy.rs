@@ -216,6 +216,7 @@ pub(crate) mod tests {
             added_at: 0,
             finished_at: Some(0),
             has_headers: false,
+            scan: None,
         }
     }
 

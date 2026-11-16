@@ -10,8 +10,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 mod client;
+mod scan;
 
 pub use client::{Client, ClientError, Events};
+pub use scan::{ScanReport, ScanState};
 
 pub type TaskId = i64;
 
@@ -118,6 +120,9 @@ pub struct TaskInfo {
     /// The daemon holds request headers (cookies, tokens) for this download.
     #[serde(default)]
     pub has_headers: bool,
+    /// What oysterAV said about the finished file; none until it was scanned.
+    #[serde(default)]
+    pub scan: Option<ScanReport>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -161,6 +166,9 @@ pub struct Settings {
     /// Leave at least this many bytes free on the disk, in bytes; 0 means no reserve.
     #[serde(default)]
     pub min_free: u64,
+    /// Scan each download with oysterAV once it completes.
+    #[serde(default)]
+    pub scan_downloads: bool,
 }
 
 fn yes() -> bool {
@@ -178,6 +186,7 @@ pub struct SettingsPatch {
     pub scrub_headers: Option<bool>,
     pub https_only: Option<bool>,
     pub min_free: Option<u64>,
+    pub scan_downloads: Option<bool>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -290,6 +299,8 @@ pub mod method {
     pub const STATUS: &str = "status";
     pub const SEGMENTS: &str = "segments";
     /// Drop the saved request headers of completed downloads; answers how many held any.
+    /// Scan a completed download's file with oysterAV now; answers the task as it then stands.
+    pub const SCAN: &str = "scan";
     pub const FORGET_HEADERS: &str = "forget_headers";
     /// After the reply, the connection carries `event` notifications only.
     pub const SUBSCRIBE: &str = "subscribe";

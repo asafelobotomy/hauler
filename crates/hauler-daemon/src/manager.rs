@@ -10,7 +10,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use hauler_engine::{self as engine, CancellationToken, Limiter, Progress};
-use hauler_ipc::{Event, NetworkState, RpcError, Settings, TaskId, TaskInfo, TaskState};
+use hauler_ipc::{Event, NetworkState, RpcError, ScanState, Settings, TaskId, TaskInfo, TaskState};
 use tokio::sync::{Notify, broadcast, watch};
 use tokio::task::JoinHandle;
 use tokio::time::Instant;
@@ -21,6 +21,7 @@ use crate::store::{Store, TaskSpec};
 mod history;
 mod ops;
 pub use ops::check_url;
+mod scanning;
 mod schedule;
 #[cfg(test)]
 mod tests;
@@ -124,6 +125,7 @@ impl Manager {
             scrub_headers: true,
             https_only: false,
             min_free: 0,
+            scan_downloads: false,
         });
 
         let mut tasks = BTreeMap::new();
@@ -131,6 +133,11 @@ impl Manager {
             // Whatever was running when the daemon stopped goes back in the queue.
             if matches!(info.state, TaskState::Running | TaskState::Waiting) {
                 info.state = TaskState::Queued;
+                store.update(&info, &spec)?;
+            }
+            // A scan that was running when the daemon stopped did not finish: ask again by hand.
+            if info.scan.as_ref().is_some_and(|r| r.state == ScanState::Scanning) {
+                info.scan = None;
                 store.update(&info, &spec)?;
             }
             tasks.insert(info.id, Entry::new(info, spec));

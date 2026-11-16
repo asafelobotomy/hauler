@@ -148,6 +148,7 @@ impl Manager {
             Err(std::io::Error::other(format!("internal error: {msg}")).into())
         });
         self.on_finished(id, result);
+        self.scan_if_enabled(id);
     }
 
     async fn attempt(

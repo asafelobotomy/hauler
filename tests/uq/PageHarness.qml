@@ -76,6 +76,8 @@ Item {
             "preview-clear-files": ok(fixture("preview-clear-files.json")),
             "preview-forget-headers": ok(fixture("preview-forget-headers.json")),
             "preview-cleanup": ok(fixture("preview-cleanup.json")),
+            "scan-one": ok(fixture("scan-one.json")),
+            "scan-all": ok(fixture("scan-all.json")),
             "pause-all": { code: 0, output: "paused 1\n" },
             "resume-all": { code: 0, output: "resumed 2\n" },
             "pause-one": { code: 0, output: "5\tpaused\n" },

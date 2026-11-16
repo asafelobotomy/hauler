@@ -10,7 +10,7 @@
 //!   properties `ActiveCount u`, `QueuedCount u`, `BytesDone t`,
 //!   `BytesTotal t`; methods `PauseAll()`, `ResumeAll()`, `Add(s url)`,
 //!   `Queue() -> a{sv}`; signals `Finished(s id, s name, b ok)` and
-//!   `Changed(s what)` ("settings" or "history").
+//!   `Changed(s what)` ("settings" or "history", also when a scan gives a verdict).
 //! - `/org/uq/Launcher1`, interface `org.uq.Launcher1.Provider`
 //!   ([`provider::LauncherProvider`]).
 //!
@@ -24,7 +24,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-use hauler_ipc::{Event, TaskId, TaskInfo, TaskState};
+use hauler_ipc::{Event, ScanState, TaskId, TaskInfo, TaskState};
 use tokio::sync::broadcast::{self, error::RecvError};
 use tokio::time::Instant;
 use tokio_util::sync::CancellationToken;
@@ -160,6 +160,9 @@ async fn publish(
     let interface = InterfaceName::from_static_str_unchecked(INTERFACE);
     let tasks = manager.list();
     let mut states: HashMap<TaskId, TaskState> = tasks.iter().map(|t| (t.id, t.state)).collect();
+    // What oysterAV last said about each download, so a verdict reaches whoever follows `Changed("history")`.
+    let mut scans: HashMap<TaskId, Option<ScanState>> =
+        tasks.iter().map(|t| (t.id, t.scan.as_ref().map(|r| r.state))).collect();
     let mut sent = aggregate(&tasks);
     let mut dirty = false;
     let mut next = Instant::now();
@@ -189,10 +192,17 @@ async fn publish(
             received = events.recv() => {
                 let finished = match received {
                     Ok(Event::TaskAdded { task } | Event::TaskUpdated { task }) => {
+                        let scan = task.scan.as_ref().map(|r| r.state);
+                        if scans.insert(task.id, scan).is_some_and(|before| before != scan)
+                            && let Err(e) = Hauler1::changed(&emitter, "history").await
+                        {
+                            debug!("Changed: {e}");
+                        }
                         newly_finished(&mut states, std::slice::from_ref(&task))
                     }
                     Ok(Event::TaskRemoved { id }) => {
                         states.remove(&id);
+                        scans.remove(&id);
                         if let Err(e) = Hauler1::changed(&emitter, "history").await {
                             debug!("Changed: {e}");
                         }

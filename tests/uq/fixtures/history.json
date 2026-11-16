@@ -20,7 +20,12 @@
       "size": 3145728,
       "speed": 0,
       "state": "completed",
-      "url": "http://127.0.0.1:8099/dl?token=abc"
+      "url": "http://127.0.0.1:8099/dl?token=abc",
+      "scan": {
+        "at": 1791386830,
+        "detail": "",
+        "state": "clean"
+      }
     },
     {
       "added_at": 1791386767,
@@ -41,7 +46,8 @@
       "size": 3145728,
       "speed": 0,
       "state": "completed",
-      "url": "http://127.0.0.1:8099/n.pdf"
+      "url": "http://127.0.0.1:8099/n.pdf",
+      "scan": null
     },
     {
       "added_at": 1794669967,
@@ -62,7 +68,12 @@
       "size": 3145728,
       "speed": 0,
       "state": "completed",
-      "url": "http://127.0.0.1:8099/h.mp4"
+      "url": "http://127.0.0.1:8099/h.mp4",
+      "scan": {
+        "at": 1791386830,
+        "detail": "Win.Test.EICAR_HDB-1",
+        "state": "threat"
+      }
     },
     {
       "added_at": 1792164367,
@@ -83,7 +94,8 @@
       "size": null,
       "speed": 0,
       "state": "failed",
-      "url": "https://127.0.0.1:8099/x"
+      "url": "https://127.0.0.1:8099/x",
+      "scan": null
     },
     {
       "added_at": 1794756367,
@@ -104,7 +116,8 @@
       "size": 3145728,
       "speed": 0,
       "state": "completed",
-      "url": "http://127.0.0.1:8099/w.png?sig=abc"
+      "url": "http://127.0.0.1:8099/w.png?sig=abc",
+      "scan": null
     }
   ]
 }

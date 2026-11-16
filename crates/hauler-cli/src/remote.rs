@@ -94,7 +94,11 @@ pub(crate) fn print_table(tasks: &[TaskInfo]) {
         let size = t.size.map(|s| HumanBytes(s).to_string()).unwrap_or_else(|| "?".into());
         let speed = if t.state == TaskState::Running { format!("{}/s", HumanBytes(t.speed)) } else { String::new() };
         let name = t.name.clone().unwrap_or_else(|| t.url.clone());
-        let note = t.error.as_deref().map(|e| format!("  ({e})")).unwrap_or_default();
+        let mut note = t.error.as_deref().map(|e| format!("  ({e})")).unwrap_or_default();
+        if let Some(r) = &t.scan {
+            let d = if r.detail.is_empty() { String::new() } else { format!(": {}", r.detail) };
+            note.push_str(&format!("  [oysterAV {}{d}]", r.state.as_str()));
+        }
         println!("{:>4}  {:<9} {:>6} {:>11} {:>11}  {name}{note}", t.id, t.state.as_str(), done, size, speed);
     }
 }

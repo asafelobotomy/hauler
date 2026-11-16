@@ -131,6 +131,19 @@ PageHarness {
             root.tab("Preferences");
             tryVerify(() => root.shown("Couldn't read Hauler's settings") !== null);
         }
+
+        function test_the_antivirus_switch_saves_at_once_and_the_scan_button_scans_everything() {
+            root.tab("Security");
+            verify(!root.named("scan-downloads").toggle.checked);
+            root.flip(root.named("scan-downloads").toggle);
+            tryVerify(() => root.runs("config-set").length === 1);
+            compare(root.runs("config-set")[0][2], ["scan_downloads", "true"]);
+            verify(root.showing("1 download has a threat") !== null);
+            tryVerify(() => root.named("scan-all").enabled);
+            root.press(root.named("scan-all"));
+            tryVerify(() => root.runs("scan-all").length === 1);
+            tryVerify(() => root.showing("Asked oysterAV to scan 2 downloads") !== null);
+        }
     }
 
     Component.onCompleted: root.tc = tc

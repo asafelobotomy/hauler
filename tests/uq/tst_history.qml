@@ -142,6 +142,26 @@ PageHarness {
             root.fakeCtx.change("history");
             tryVerify(() => root.shown("<a href='http://evil'>click</a>.zip") !== null);
         }
+
+        function test_a_threat_is_marked_on_its_row_and_the_page_warns() {
+            root.tab("History");
+            verify(root.showing("oysterAV found Win.Test.EICAR_HDB-1. Don't open it") !== null);
+            verify(root.showing("oysterAV found no threats.") !== null);
+            verify(root.named("scan-threats") !== null, "the banner");
+            // Scanned rows offer a rescan, unscanned ones a scan, and a row whose file is gone neither.
+            verify(root.named("rescan-3") !== null);
+            verify(root.named("rescan-1") !== null);
+            verify(root.named("scan-8") !== null);
+            verify(root.named("scan-2") === null && root.named("rescan-2") === null);
+        }
+
+        function test_scanning_one_download_sends_its_id() {
+            root.tab("History");
+            root.press(root.named("scan-8"));
+            tryVerify(() => root.runs("scan-one").length === 1);
+            compare(root.runs("scan-one")[0][2], ["8"]);
+            tryVerify(() => root.showing("Asked oysterAV to scan it.") !== null);
+        }
     }
 
     Component.onCompleted: root.tc = tc

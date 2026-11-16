@@ -20,6 +20,8 @@ QQC2.ItemDelegate {
     required property int connections
     required property bool resumable
     required property string error
+    required property string scanState
+    required property string scanDetail
 
     readonly property string displayName: fileName || url
     readonly property real fraction: size > 0 ? Math.min(1, received / size) : 0
@@ -80,12 +82,29 @@ QQC2.ItemDelegate {
             parts.push(Fmt.bytes(size > 0 ? size : received));
             if (!compact)
                 parts.push(Fmt.host(url));
+            if (scanText() !== "")
+                parts.push(scanText());
             break;
         case "failed":
             parts.push(error);
             break;
         }
         return parts.join(" · ");
+    }
+
+    // What oysterAV found, when it was asked ("" otherwise).
+    function scanText() {
+        switch (scanState) {
+        case "scanning":
+            return qsTr("scanning…");
+        case "clean":
+            return qsTr("no threats found");
+        case "threat":
+            return qsTr("THREAT: %1").arg(scanDetail || qsTr("found by oysterAV"));
+        case "error":
+            return qsTr("couldn't be scanned");
+        }
+        return "";
     }
 
     // The one button every row shows: what you most likely want next.
@@ -123,6 +142,14 @@ QQC2.ItemDelegate {
         icon.name: "document-open-folder"
         text: qsTr("Open Folder")
         onTriggered: Qt.openUrlExternally(Fmt.fileUrl(item.dir))
+    }
+    Kirigami.Action {
+        id: scanAction
+
+        icon.name: "security-medium"
+        text: item.scanState === "" ? qsTr("Scan with oysterAV") : qsTr("Scan Again")
+        visible: item.status === "completed" && item.scanState !== "scanning"
+        onTriggered: item.backend.scan(item.taskId)
     }
     Kirigami.Action {
         id: removeAction
@@ -200,7 +227,7 @@ QQC2.ItemDelegate {
                     elide: Text.ElideRight
                     font.pointSize: Kirigami.Theme.smallFont.pointSize
                     font.features: { "tnum": 1 }
-                    color: item.status === "failed" ? Kirigami.Theme.negativeTextColor : Kirigami.Theme.disabledTextColor
+                    color: item.status === "failed" || item.scanState === "threat" ? Kirigami.Theme.negativeTextColor : Kirigami.Theme.disabledTextColor
                     opacity: item.status === "failed" ? 0.8 : 1
 
                     QQC2.ToolTip.text: item.error
@@ -283,6 +310,11 @@ QQC2.ItemDelegate {
         }
         QQC2.MenuItem {
             action: openFolderAction
+        }
+        QQC2.MenuItem {
+            action: scanAction
+            visible: scanAction.visible
+            height: visible ? implicitHeight : 0
         }
         QQC2.MenuItem {
             icon.name: "documentinfo"
