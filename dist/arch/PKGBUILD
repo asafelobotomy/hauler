@@ -14,7 +14,7 @@ license=('GPL-3.0-or-later' 'MIT OR Apache-2.0')
 depends=('gcc-libs' 'glibc' 'hicolor-icon-theme' 'qt6-base' 'qt6-declarative'
          'kirigami' 'kitemmodels' 'qqc2-desktop-style')
 makedepends=('cargo' 'cmake' 'git')
-optdepends=('uq: Downloads widget in the bar and "Download with hauler" in Spotlight')
+optdepends=('uq: Downloads widget in the bar and "Download with hauler" in look=see>do_')
 # Rust links its own LTO; makepkg's C/C++ LTO flags break the cxx-qt objects.
 options=('!lto' '!debug')
 
