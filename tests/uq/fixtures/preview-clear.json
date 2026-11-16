@@ -1,0 +1,37 @@
+{
+  "changes": [
+    {
+      "detail": "finished 40 days ago",
+      "group": "Removed from the list",
+      "label": "ubuntu-26.04-desktop.iso",
+      "reversible": false
+    },
+    {
+      "detail": "finished 40 days ago",
+      "group": "Removed from the list",
+      "label": "notes.pdf",
+      "reversible": false
+    },
+    {
+      "detail": "finished 2 days ago",
+      "group": "Removed from the list",
+      "label": "holiday.mp4",
+      "reversible": false
+    },
+    {
+      "detail": "finished 31 days ago",
+      "group": "Removed from the list",
+      "label": "broken.zip",
+      "reversible": false
+    },
+    {
+      "detail": "finished 1 day ago",
+      "group": "Removed from the list",
+      "label": "wallpaper.png",
+      "reversible": false
+    }
+  ],
+  "reason": "",
+  "summary": "5 downloads leave the list. Files stay.",
+  "would_refuse": false
+}

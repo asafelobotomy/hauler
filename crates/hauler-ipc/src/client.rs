@@ -136,6 +136,10 @@ impl Client {
         self.call(method::STATUS, Value::Null).await
     }
 
+    pub async fn forget_headers(&mut self) -> Result<u32, ClientError> {
+        self.call(method::FORGET_HEADERS, Value::Null).await
+    }
+
     pub async fn segments(&mut self, id: TaskId) -> Result<SegmentMap, ClientError> {
         self.call(method::SEGMENTS, IdParams { id }).await
     }

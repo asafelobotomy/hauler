@@ -1,0 +1,27 @@
+{
+  "dir": "/home/user/Downloads",
+  "dir_ok": true,
+  "finished": {
+    "bytes": 9437184,
+    "count": 4
+  },
+  "free_bytes": 23888023552,
+  "leftovers": {
+    "bytes": 67109467,
+    "count": 1,
+    "files": [
+      {
+        "bytes": 67109467,
+        "dir": "/home/user/Downloads",
+        "name": "stray-copy.iso"
+      }
+    ]
+  },
+  "min_free": 0,
+  "ok": true,
+  "total_bytes": 270553174016,
+  "unfinished": {
+    "bytes": 67108864,
+    "count": 1
+  }
+}

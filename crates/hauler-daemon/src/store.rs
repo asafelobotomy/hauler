@@ -125,6 +125,12 @@ impl Store {
         tx.commit()
     }
 
+    /// Forget the saved request headers (cookies, tokens) of one download.
+    pub fn clear_headers(&self, id: TaskId) -> rusqlite::Result<()> {
+        self.conn.lock().unwrap().execute("UPDATE tasks SET headers = '[]' WHERE id = ?1", [id])?;
+        Ok(())
+    }
+
     pub fn delete(&self, id: TaskId) -> rusqlite::Result<()> {
         self.conn.lock().unwrap().execute("DELETE FROM tasks WHERE id = ?1", [id])?;
         Ok(())
@@ -157,6 +163,7 @@ impl Store {
                 error: r.get(13)?,
                 added_at: r.get(14)?,
                 finished_at: r.get(15)?,
+                has_headers: headers != "[]",
             };
             let spec = TaskSpec {
                 filename,
@@ -207,6 +214,7 @@ mod tests {
             error: None,
             added_at: 1,
             finished_at: None,
+            has_headers: false,
         }
     }
 
@@ -255,6 +263,10 @@ mod tests {
             global_limit: 0,
             download_dir: "/tmp".into(),
             pause_on_metered: true,
+            history_days: 0,
+            scrub_headers: true,
+            https_only: false,
+            min_free: 0,
         };
         store.save_settings(&settings).unwrap();
         assert_eq!(store.load_settings().unwrap(), Some(settings));

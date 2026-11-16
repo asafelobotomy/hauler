@@ -9,7 +9,8 @@
 //! - `/org/hauler/Hauler1`, interface `org.hauler.Hauler1` ([`Hauler1`]):
 //!   properties `ActiveCount u`, `QueuedCount u`, `BytesDone t`,
 //!   `BytesTotal t`; methods `PauseAll()`, `ResumeAll()`, `Add(s url)`,
-//!   `Queue() -> a{sv}`; signal `Finished(s id, s name, b ok)`.
+//!   `Queue() -> a{sv}`; signals `Finished(s id, s name, b ok)` and
+//!   `Changed(s what)` ("settings" or "history").
 //! - `/org/uq/Launcher1`, interface `org.uq.Launcher1.Provider`
 //!   ([`provider::LauncherProvider`]).
 //!
@@ -192,10 +193,19 @@ async fn publish(
                     }
                     Ok(Event::TaskRemoved { id }) => {
                         states.remove(&id);
+                        if let Err(e) = Hauler1::changed(&emitter, "history").await {
+                            debug!("Changed: {e}");
+                        }
                         Vec::new()
                     }
                     Ok(Event::Progress { .. }) => Vec::new(),
-                    Ok(Event::Settings { .. } | Event::Network { .. }) => continue,
+                    Ok(Event::Settings { .. }) => {
+                        if let Err(e) = Hauler1::changed(&emitter, "settings").await {
+                            debug!("Changed: {e}");
+                        }
+                        continue;
+                    }
+                    Ok(Event::Network { .. }) => continue,
                     // Missed some: compare against the whole list instead.
                     Err(RecvError::Lagged(_)) => {
                         let tasks = manager.list();

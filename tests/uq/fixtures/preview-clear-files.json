@@ -1,0 +1,34 @@
+{
+  "changes": [
+    {
+      "bytes": 3145728,
+      "detail": "finished 40 days ago; deletes /home/user/Downloads/ubuntu-26.04-desktop.iso",
+      "group": "Removed with their files",
+      "label": "ubuntu-26.04-desktop.iso",
+      "reversible": false
+    },
+    {
+      "detail": "finished 40 days ago; no file to delete",
+      "group": "Removed with their files",
+      "label": "notes.pdf",
+      "reversible": false
+    },
+    {
+      "bytes": 3145728,
+      "detail": "finished 2 days ago; deletes /home/user/Downloads/holiday.mp4",
+      "group": "Removed with their files",
+      "label": "holiday.mp4",
+      "reversible": false
+    },
+    {
+      "bytes": 3145728,
+      "detail": "finished 1 day ago; deletes /home/user/Downloads/wallpaper.png",
+      "group": "Removed with their files",
+      "label": "wallpaper.png",
+      "reversible": false
+    }
+  ],
+  "reason": "",
+  "summary": "4 downloads removed, 3 files deleted (9.00 MiB).",
+  "would_refuse": false
+}

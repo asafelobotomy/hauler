@@ -1,0 +1,5 @@
+{
+  "code": "error",
+  "error": "connections: must be 1 to 32",
+  "ok": false
+}

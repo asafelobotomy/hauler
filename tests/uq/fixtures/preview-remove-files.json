@@ -1,0 +1,14 @@
+{
+  "changes": [
+    {
+      "bytes": 3145728,
+      "detail": "finished 40 days ago; deletes /home/user/Downloads/ubuntu-26.04-desktop.iso",
+      "group": "Removed with their files",
+      "label": "ubuntu-26.04-desktop.iso",
+      "reversible": false
+    }
+  ],
+  "reason": "",
+  "summary": "1 download removed, 1 file deleted (3.00 MiB).",
+  "would_refuse": false
+}

@@ -5,7 +5,7 @@
 # An AUR package would use the same steps with a release tarball as source.
 
 pkgname=hauler
-pkgver=0.1.2
+pkgver=0.2.0
 pkgrel=1
 pkgdesc='Fast, resumable download manager: segmented engine, systemd daemon and Kirigami app'
 arch=('x86_64')
@@ -14,7 +14,7 @@ license=('GPL-3.0-or-later' 'MIT OR Apache-2.0')
 depends=('gcc-libs' 'glibc' 'hicolor-icon-theme' 'qt6-base' 'qt6-declarative'
          'kirigami' 'kitemmodels' 'qqc2-desktop-style')
 makedepends=('cargo' 'cmake' 'git')
-optdepends=('uq: Downloads widget in the bar and "Download with hauler" in look=see>do_')
+optdepends=('uq: Downloads widget in the bar, "Download with hauler" in look=see>do_ and the Downloads page in Settings')
 # Rust links its own LTO; makepkg's C/C++ LTO flags break the cxx-qt objects.
 options=('!lto' '!debug')
 
@@ -41,6 +41,7 @@ package() {
   # lets the session bus start haulerd through hauler.service.
   install -Dm644 -t "$pkgdir/usr/share/uq/shell/widgets/hauler" uq/widgets/hauler/widget.toml uq/widgets/hauler/Widget.qml
   install -Dm644 -t "$pkgdir/usr/share/uq/launcher" uq/launcher/hauler.provider
+  install -Dm644 -t "$pkgdir/usr/share/uq/settings/pages/hauler" uq/pages/hauler/*
   install -Dm644 -t "$pkgdir/usr/share/dbus-1/services" uq/dbus/org.hauler.Hauler1.service
   install -Dm644 -t "$pkgdir/usr/share/licenses/$pkgname" COPYING LICENSE-MIT LICENSE-APACHE
   install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"

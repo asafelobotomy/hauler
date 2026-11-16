@@ -44,6 +44,24 @@ hauler config --max-active 5 --dir ~/Downloads --pause-on-metered false
 hauler status
 ```
 
+Tidying, safety and storage (each of these takes `--json`; the ones that delete take `--dry-run` too and print what would go):
+
+```sh
+hauler list --finished --json                     # the history, with where each file is and whether it is still there
+hauler clear --state completed --older-than 30    # take finished downloads off the list (their files stay)
+hauler clear --state failed --delete-files        # ... and delete the files too
+hauler config show --json                         # every setting, with what each accepts
+hauler config set history_days 30 --dry-run       # change one setting; --dry-run shows what it would remove
+hauler forget-headers                             # drop the saved cookies of completed downloads
+hauler storage --json                             # download folder, free space, what hauler's downloads take
+hauler cleanup --dry-run                          # unfinished downloads nothing is working on and no queue entry owns
+```
+
+Settings, besides the ones above: `history_days` (forget finished downloads after this many days; 0 keeps them),
+`scrub_headers` (drop a download's saved cookies and headers when it completes; on by default), `https_only` (refuse
+http links, and downloads whose server redirects to http), and `min_free` (refuse a download that would leave less than
+this much free on the disk, like `5G`; 0 is no reserve).
+
 Standalone, without the daemon:
 
 ```sh
@@ -84,12 +102,12 @@ While `haulerd` runs it owns `org.hauler.Hauler1` on the session bus, for deskto
 - **`/org/hauler/Hauler1`, interface `org.hauler.Hauler1`.**
   - Properties `ActiveCount u` (running), `QueuedCount u` (queued or held for the network), `BytesDone t` and `BytesTotal t`, over the downloads that are running, queued or held. `BytesTotal` is 0 while any of their sizes is unknown. `PropertiesChanged` goes out at most once a second, with only what changed.
   - Methods `PauseAll()`, `ResumeAll()`, `Add(s url)` and `Queue() → a{sv}`. `Add` checks the URL exactly as `hauler add` does and answers `InvalidArgs` for anything but an http or https URL. `Queue` returns up to 50 unfinished downloads keyed `"000"`, `"001"`… in queue order, each an `a{sv}` of `id`, `name`, `state`, `received`, `size` (0 when unknown) and `speed`.
-  - Signal `Finished(s id, s name, b ok)` when a download completes (`ok`) or fails.
+  - Signal `Finished(s id, s name, b ok)` when a download completes (`ok`) or fails, and `Changed(s what)` when settings are saved (`"settings"`) or a download leaves the list (`"history"`).
 - **`/org/uq/Launcher1`, interface `org.uq.Launcher1.Provider`.** A launcher query that is a whole http or https URL gets one row, "Download with hauler"; choosing it queues the URL.
 
 Anyone on your session bus can call these, the same trust as the socket.
 
-`uq/` holds the files that plug hauler into the [uQ](https://github.com/asafelobotomy/uq) desktop: a Downloads widget for the bar, the launcher provider, and a D-Bus service file that starts `haulerd` through `hauler.service`. The package installs them; they do nothing without uQ. See `uq/README.md`.
+`uq/` holds the files that plug hauler into the [uQ](https://github.com/asafelobotomy/uq) desktop: a Downloads widget for the bar, the launcher provider, a **Downloads** page in uQ Settings (queue, history, storage, security and preferences, with a plan shown before anything is deleted), and a D-Bus service file that starts `haulerd` through `hauler.service`. The page follows `Changed(s what)` (`"settings"` or `"history"`) and `Finished` on the same interface. The package installs them; they do nothing without uQ. See `uq/README.md`.
 
 ## Benchmarks
 
@@ -150,7 +168,9 @@ The tests cover:
 - starting over after a checksum mismatch
 - removing a download never deletes files it did not make
 - handing links from a second launch of the desktop app to the first
-- the session-bus interface and launcher provider on a private bus, including the once-a-second limit on `PropertiesChanged`
+- the session-bus interface and launcher provider on a private bus, including the once-a-second limit on `PropertiesChanged` and the `Changed` signal
+- the guards behind the Security and Storage settings: https only (also after a redirect), a free-space reserve, forgetting saved cookies, and keeping the history for a number of days
+- the Downloads page in uQ Settings: its logic and manifest (`node --test`), every tab against a fake `ctx` (`qmltestrunner`), and every command it declares against a real daemon (`cargo test -p hauler-cli --test uq_page`)
 
 ## Licence
 

@@ -1,0 +1,5 @@
+{
+  "code": "daemon_down",
+  "error": "haulerd isn't running. Start it with `systemctl --user start hauler.socket`.",
+  "ok": false
+}

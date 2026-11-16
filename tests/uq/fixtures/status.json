@@ -1,0 +1,20 @@
+{
+  "counts": {
+    "completed": 4,
+    "failed": 1,
+    "paused": 2,
+    "queued": 0,
+    "running": 1,
+    "total": 8
+  },
+  "network": {
+    "metered": false,
+    "online": true,
+    "open": true
+  },
+  "ok": true,
+  "queued": 0,
+  "running": 1,
+  "speed": 1581184,
+  "version": "0.1.2"
+}

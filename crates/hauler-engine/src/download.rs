@@ -23,6 +23,7 @@ mod retry;
 mod segmented;
 mod stream;
 
+pub use files::{Partial, partials};
 use files::{Paths, free_name, lock_part, part_path, state_path};
 use retry::retry;
 use segmented::run_segmented;
@@ -55,6 +56,11 @@ pub struct Options {
     pub restart: bool,
     /// Speed limits to obey, e.g. this download's own and a global one.
     pub limiter: Vec<Arc<Limiter>>,
+    /// Refuse an http address, and a redirect that ends on one.
+    pub https_only: bool,
+    /// Keep this many bytes free on the disk: a download that would leave
+    /// less is refused before it starts. 0 means no reserve.
+    pub min_free: u64,
 }
 
 impl Default for Options {
@@ -73,6 +79,8 @@ impl Default for Options {
             checksum: None,
             restart: false,
             limiter: Vec::new(),
+            https_only: false,
+            min_free: 0,
         }
     }
 }
@@ -149,7 +157,13 @@ pub struct Task {
 /// Probe `url` and decide where and how to download it, resuming earlier
 /// progress when the remote file is unchanged.
 pub async fn prepare(client: Client, url: &str, dir: &Path, opts: Options) -> Result<Task> {
+    if opts.https_only {
+        require_https(url)?;
+    }
     let probe = retry(&opts, || probe::probe(&client, url, &opts.headers)).await?;
+    if opts.https_only {
+        require_https(&probe.final_url)?;
+    }
     let mut opts = opts;
     opts.headers = headers_for(url, &probe.final_url, &opts.headers);
     let name = opts
@@ -164,6 +178,11 @@ pub async fn prepare(client: Client, url: &str, dir: &Path, opts: Options) -> Re
     let mut resume = !opts.restart && state_path(&target).exists();
     if !resume && (target.exists() || (!opts.restart && part_path(&target).exists())) {
         target = free_name(dir, &name);
+    }
+    // Before anything is created: a refusal leaves no empty `.part` behind.
+    if opts.min_free > 0 {
+        let have = fs::metadata(part_path(&target)).map(|m| m.len()).unwrap_or(0);
+        check_space(dir, probe.size.unwrap_or(0).saturating_sub(have), opts.min_free)?;
     }
     // Never share a part file: if another download (another task, or a
     // `hauler get` next to the daemon) holds it, take the next free name.
@@ -259,6 +278,29 @@ impl Task {
             Mode::Stream => run_stream(client, opts, url, probe, paths, file, progress, cancel).await,
         }
     }
+}
+
+fn require_https(url: &str) -> Result<()> {
+    match Url::parse(url) {
+        Ok(u) if u.scheme() == "https" => Ok(()),
+        Ok(u) => Err(Error::Insecure(u.host_str().unwrap_or("that address").to_owned())),
+        Err(_) => Err(Error::Insecure(url.to_owned())),
+    }
+}
+
+/// Bytes free for this user on the disk holding `dir`.
+pub fn free_space(dir: &Path) -> std::io::Result<u64> {
+    let s = rustix::fs::statvfs(dir)?;
+    Ok(s.f_bavail.saturating_mul(s.f_frsize))
+}
+
+fn check_space(dir: &Path, need: u64, reserve: u64) -> Result<()> {
+    // A disk that can't be measured is not a reason to refuse.
+    let Ok(free) = free_space(dir) else { return Ok(()) };
+    if need.saturating_add(reserve) > free {
+        return Err(Error::NoSpace { need, reserve, free });
+    }
+    Ok(())
 }
 
 /// Headers to send to `final_url`. Credentials go only to the origin they

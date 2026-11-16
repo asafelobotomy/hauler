@@ -1,0 +1,25 @@
+{
+  "changes": [
+    {
+      "detail": "finished 40 days ago",
+      "group": "Leave the history",
+      "label": "ubuntu-26.04-desktop.iso",
+      "reversible": false
+    },
+    {
+      "detail": "finished 40 days ago",
+      "group": "Leave the history",
+      "label": "notes.pdf",
+      "reversible": false
+    },
+    {
+      "detail": "finished 31 days ago",
+      "group": "Leave the history",
+      "label": "broken.zip",
+      "reversible": false
+    }
+  ],
+  "reason": "",
+  "summary": "3 downloads leave the history. Their files stay.",
+  "would_refuse": false
+}

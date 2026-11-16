@@ -21,7 +21,7 @@ use zbus::OwnedVariant;
 const MIB: u64 = 1024 * 1024;
 
 /// One PropertiesChanged: when it arrived, and what it carried.
-type Changed = (Instant, HashMap<String, OwnedVariant>);
+type PropsChanged = (Instant, HashMap<String, OwnedVariant>);
 
 #[zbus::proxy(
     interface = "org.hauler.Hauler1",
@@ -43,6 +43,8 @@ trait Hauler1 {
     fn bytes_total(&self) -> zbus::Result<u64>;
     #[zbus(signal)]
     fn finished(&self, id: String, name: String, ok: bool) -> zbus::Result<()>;
+    #[zbus(signal)]
+    fn changed(&self, what: String) -> zbus::Result<()>;
 }
 
 #[zbus::proxy(
@@ -149,7 +151,7 @@ async fn status_interface_and_provider_on_a_private_bus() {
     let provider = ProviderProxy::builder(&conn).path(PROVIDER_PATH).build().await.unwrap();
 
     // Every PropertiesChanged, with when it arrived.
-    let changes: Arc<Mutex<Vec<Changed>>> = Arc::default();
+    let changes: Arc<Mutex<Vec<PropsChanged>>> = Arc::default();
     let props = zbus::fdo::PropertiesProxy::builder(&conn).destination(BUS_NAME).path(PATH);
     let mut changed_stream = props.build().await.unwrap().receive_properties_changed().await.unwrap();
     let recorder = {
@@ -168,6 +170,7 @@ async fn status_interface_and_provider_on_a_private_bus() {
         })
     };
     let mut finished = hauler.receive_finished().await.unwrap();
+    let mut changed_what = hauler.receive_changed().await.unwrap();
 
     // Idle: everything zero.
     assert_eq!(hauler.active_count().await.unwrap(), 0);
@@ -261,6 +264,15 @@ async fn status_interface_and_provider_on_a_private_bus() {
             assert!(["ActiveCount", "QueuedCount", "BytesDone", "BytesTotal"].contains(&k.as_str()), "{k}");
         }
     }
+
+    // A settings page hears about saved settings and about the list shrinking.
+    manager.set_settings(SettingsPatch { history_days: Some(30), ..Default::default() }).unwrap();
+    let what = tokio::time::timeout(Duration::from_secs(10), changed_what.next()).await.unwrap().unwrap();
+    assert_eq!(what.args().unwrap().what, "settings");
+    let id = manager.list().first().expect("a download is left in the list").id;
+    manager.remove(id, false).await.unwrap();
+    let what = tokio::time::timeout(Duration::from_secs(10), changed_what.next()).await.unwrap().unwrap();
+    assert_eq!(what.args().unwrap().what, "history");
 
     // Stopping gives the name up.
     stop.cancel();

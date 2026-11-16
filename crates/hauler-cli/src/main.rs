@@ -3,8 +3,13 @@ use std::process::ExitCode;
 use clap::{Parser, Subcommand};
 use hauler_engine::header::{HeaderName, HeaderValue};
 
+mod config;
 mod get;
+mod json;
+mod queue;
 mod remote;
+mod storage;
+mod tidy;
 
 /// Fast, resumable downloads over parallel connections.
 #[derive(Parser)]
@@ -19,20 +24,24 @@ enum Command {
     Get(get::GetArgs),
     Add(remote::AddArgs),
     #[command(alias = "ls")]
-    List(remote::ListArgs),
+    List(queue::ListArgs),
     /// Pause downloads.
     Pause(remote::IdsArgs),
     /// Resume paused or failed downloads.
     Resume(remote::IdsArgs),
     #[command(alias = "rm")]
-    Remove(remote::RemoveArgs),
+    Remove(tidy::RemoveArgs),
+    Clear(tidy::ClearArgs),
+    ForgetHeaders(queue::ForgetArgs),
     Limit(remote::LimitArgs),
     Priority(remote::PriorityArgs),
     /// Follow downloads live.
     Watch,
     /// Show what the daemon is doing.
-    Status,
-    Config(remote::ConfigArgs),
+    Status(queue::StatusArgs),
+    Config(config::ConfigArgs),
+    Storage(storage::StorageArgs),
+    Cleanup(storage::CleanupArgs),
 }
 
 pub(crate) fn parse_size(s: &str) -> Result<u64, String> {
@@ -65,15 +74,19 @@ async fn main() -> anyhow::Result<ExitCode> {
     match Cli::parse().command {
         Command::Get(args) => get::run(args).await,
         Command::Add(args) => remote::add(args).await,
-        Command::List(args) => remote::list(args).await,
+        Command::List(args) => queue::list(args).await,
         Command::Pause(args) => remote::pause(args).await,
         Command::Resume(args) => remote::resume(args).await,
-        Command::Remove(args) => remote::remove(args).await,
+        Command::Remove(args) => tidy::remove(args).await,
+        Command::Clear(args) => tidy::clear(args).await,
+        Command::ForgetHeaders(args) => queue::forget_headers(args).await,
         Command::Limit(args) => remote::limit(args).await,
         Command::Priority(args) => remote::priority(args).await,
         Command::Watch => remote::watch().await,
-        Command::Status => remote::status().await,
-        Command::Config(args) => remote::config(args).await,
+        Command::Status(args) => queue::status(args).await,
+        Command::Config(args) => config::run(args).await,
+        Command::Storage(args) => storage::storage(args).await,
+        Command::Cleanup(args) => storage::cleanup(args).await,
     }
 }
 

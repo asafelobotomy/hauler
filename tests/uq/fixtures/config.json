@@ -1,0 +1,70 @@
+{
+  "ok": true,
+  "schema": [
+    {
+      "key": "max_active",
+      "kind": "int",
+      "max": null,
+      "min": 1
+    },
+    {
+      "key": "connections",
+      "kind": "int",
+      "max": 32,
+      "min": 1
+    },
+    {
+      "key": "global_limit",
+      "kind": "size",
+      "max": null,
+      "min": 0
+    },
+    {
+      "key": "download_dir",
+      "kind": "dir",
+      "max": null,
+      "min": null
+    },
+    {
+      "key": "pause_on_metered",
+      "kind": "bool",
+      "max": null,
+      "min": null
+    },
+    {
+      "key": "history_days",
+      "kind": "int",
+      "max": 36500,
+      "min": 0
+    },
+    {
+      "key": "scrub_headers",
+      "kind": "bool",
+      "max": null,
+      "min": null
+    },
+    {
+      "key": "https_only",
+      "kind": "bool",
+      "max": null,
+      "min": null
+    },
+    {
+      "key": "min_free",
+      "kind": "size",
+      "max": null,
+      "min": 0
+    }
+  ],
+  "settings": {
+    "connections": 8,
+    "download_dir": "/home/user/Downloads",
+    "global_limit": 0,
+    "history_days": 0,
+    "https_only": false,
+    "max_active": 3,
+    "min_free": 0,
+    "pause_on_metered": true,
+    "scrub_headers": false
+  }
+}

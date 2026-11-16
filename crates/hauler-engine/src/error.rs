@@ -22,6 +22,11 @@ pub enum Error {
     Refused(String),
     #[error("the file changed on the server since the download started")]
     Changed,
+    /// `https_only` is on and the address, or where a redirect led, is plain http.
+    #[error("refused: {0} is not https, and only https downloads are allowed")]
+    Insecure(String),
+    #[error("not enough free space: needs {need} bytes and a reserve of {reserve}, but {free} are free")]
+    NoSpace { need: u64, reserve: u64, free: u64 },
     #[error("i/o error: {0}")]
     Io(#[from] std::io::Error),
     #[error("checksum mismatch: expected {expected}, got {actual}")]

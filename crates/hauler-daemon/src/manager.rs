@@ -18,6 +18,7 @@ use tracing::{info, warn};
 
 use crate::store::{Store, TaskSpec};
 
+mod history;
 mod ops;
 pub use ops::check_url;
 mod schedule;
@@ -39,7 +40,8 @@ struct Entry {
 }
 
 impl Entry {
-    fn new(info: TaskInfo, spec: TaskSpec) -> Self {
+    fn new(mut info: TaskInfo, spec: TaskSpec) -> Self {
+        info.has_headers = !spec.headers.is_empty();
         let limiter = Limiter::new(info.limit);
         Self { info, spec, limiter, run: None, turned_away: 0, retry_at: None }
     }
@@ -118,6 +120,10 @@ impl Manager {
             global_limit: 0,
             download_dir: default_dir.to_string_lossy().into_owned(),
             pause_on_metered: true,
+            history_days: 0,
+            scrub_headers: true,
+            https_only: false,
+            min_free: 0,
         });
 
         let mut tasks = BTreeMap::new();
@@ -133,7 +139,7 @@ impl Manager {
 
         let (events, _) = broadcast::channel(1024);
         let (active, _) = watch::channel(0);
-        Ok(Arc::new(Self {
+        let m = Arc::new(Self {
             global: Limiter::new(settings.global_limit),
             inner: Mutex::new(Inner { tasks, settings, online: true, metered: false, shutting_down: false, ticks: 0 }),
             store,
@@ -141,7 +147,9 @@ impl Manager {
             events,
             active,
             wake: Notify::new(),
-        }))
+        });
+        m.prune_history();
+        Ok(m)
     }
 
     pub fn subscribe(&self) -> broadcast::Receiver<Event> {

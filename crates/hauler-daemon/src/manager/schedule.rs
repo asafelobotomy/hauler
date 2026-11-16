@@ -87,6 +87,7 @@ impl Manager {
 
     fn start(self: &Arc<Self>, inner: &mut Inner, id: TaskId) {
         let default_connections = inner.settings.connections;
+        let (https_only, min_free) = (inner.settings.https_only, inner.settings.min_free);
         let entry = inner.tasks.get_mut(&id).unwrap();
         let cancel = CancellationToken::new();
         entry.info.state = TaskState::Running;
@@ -105,6 +106,8 @@ impl Manager {
             filename: entry.spec.filename.clone(),
             checksum: entry.spec.checksum.as_deref().and_then(|c| c.parse().ok()),
             limiter: vec![entry.limiter.clone(), self.global.clone()],
+            https_only,
+            min_free,
             ..engine::Options::default()
         };
         let handle = tokio::spawn(self.clone().drive(
@@ -193,6 +196,7 @@ impl Manager {
 
     pub(super) fn on_finished(&self, id: TaskId, result: engine::Result<Outcome>) {
         let mut inner = self.inner.lock().unwrap();
+        let scrub = inner.settings.scrub_headers;
         let Some(entry) = inner.tasks.get_mut(&id) else { return };
         let Some(run) = entry.run.take() else { return };
         if let Some(p) = &run.progress {
@@ -208,6 +212,9 @@ impl Manager {
                 entry.info.name = path.file_name().map(|n| n.to_string_lossy().into_owned());
                 if let Some(size) = entry.info.size {
                     entry.info.received = size;
+                }
+                if scrub {
+                    self.scrub(entry);
                 }
             }
             Ok(Outcome::Paused) => entry.info.state = run.after_stop,
@@ -231,6 +238,7 @@ impl Manager {
         }
         self.changed(&inner, id);
         drop(inner);
+        self.prune_history();
         self.wake.notify_one();
     }
 

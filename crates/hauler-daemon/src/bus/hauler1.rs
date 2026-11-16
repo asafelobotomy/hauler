@@ -111,6 +111,12 @@ impl Hauler1 {
         queue_order(self.manager.list()).iter().enumerate().map(|(i, t)| (format!("{i:03}"), entry(t))).collect()
     }
 
+    /// Something a settings page shows changed outside the queue's numbers:
+    /// `what` is "settings" (daemon settings saved) or "history" (a download was
+    /// removed from the list, by hand or by the retention limit).
+    #[zbus(signal)]
+    pub async fn changed(emitter: &SignalEmitter<'_>, what: &str) -> zbus::Result<()>;
+
     /// A download completed (`ok`) or failed.
     #[zbus(signal)]
     pub async fn finished(emitter: &SignalEmitter<'_>, id: &str, name: &str, ok: bool) -> zbus::Result<()>;

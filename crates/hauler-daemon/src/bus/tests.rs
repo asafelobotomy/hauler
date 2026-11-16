@@ -27,6 +27,7 @@ fn task(id: i64, state: TaskState, received: u64, size: Option<u64>) -> TaskInfo
         error: None,
         added_at: 0,
         finished_at: None,
+        has_headers: false,
     }
 }
 

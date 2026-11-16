@@ -1,0 +1,14 @@
+{
+  "changes": [
+    {
+      "bytes": 67109467,
+      "detail": "/home/user/Downloads",
+      "group": "Unfinished downloads nothing is working on",
+      "label": "stray-copy.iso",
+      "reversible": false
+    }
+  ],
+  "reason": "",
+  "summary": "1 unfinished download deleted, 64.00 MiB freed.",
+  "would_refuse": false
+}

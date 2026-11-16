@@ -84,3 +84,62 @@ fn only_http_and_https_urls_are_accepted() {
     let err = m.add(AddParams { url: "ftp://example.com/a".into(), ..Default::default() }).unwrap_err();
     assert_eq!(err.code, hauler_ipc::RpcError::INVALID_PARAMS);
 }
+
+#[test]
+fn only_completed_downloads_forget_their_headers() {
+    let m = Manager::new(Store::in_memory().unwrap(), &std::env::temp_dir()).unwrap();
+    let add = |name: &str| {
+        let url = format!("http://127.0.0.1:9/{name}");
+        let headers = vec![("Cookie".to_string(), "a=b".to_string())];
+        m.add(AddParams { url, headers, paused: true, ..Default::default() }).unwrap().id
+    };
+    let (done, waiting) = (add("done.bin"), add("waiting.bin"));
+    {
+        let mut inner = m.inner.lock().unwrap();
+        inner.tasks.get_mut(&done).unwrap().info.state = TaskState::Completed;
+    }
+    assert!(m.get(done).unwrap().has_headers);
+    assert_eq!(m.forget_headers(), 1);
+    assert!(!m.get(done).unwrap().has_headers);
+    assert!(m.get(waiting).unwrap().has_headers, "a download still to finish keeps its cookie");
+    assert_eq!(m.forget_headers(), 0);
+    // The database forgot too: a restart does not bring them back.
+    let rows = m.store.load_all().unwrap();
+    let row = |id| rows.iter().find(|(i, _)| i.id == id).unwrap();
+    assert!(row(done).1.headers.is_empty());
+    assert_eq!(row(waiting).1.headers.len(), 1);
+}
+
+#[test]
+fn old_finished_downloads_leave_the_list_but_recent_and_unfinished_stay() {
+    let m = Manager::new(Store::in_memory().unwrap(), &std::env::temp_dir()).unwrap();
+    let add = |name: &str, state: TaskState, age_days: i64| {
+        let url = format!("http://127.0.0.1:9/{name}");
+        let id = m.add(AddParams { url, paused: true, ..Default::default() }).unwrap().id;
+        let mut inner = m.inner.lock().unwrap();
+        let e = inner.tasks.get_mut(&id).unwrap();
+        e.info.state = state;
+        e.info.finished_at = state.is_finished().then(|| super::now() - age_days * 86_400);
+        id
+    };
+    let old = add("old.bin", TaskState::Completed, 40);
+    let old_failed = add("old-failed.bin", TaskState::Failed, 31);
+    let recent = add("recent.bin", TaskState::Completed, 2);
+    let paused = add("paused.bin", TaskState::Paused, 0);
+    m.prune_history();
+    assert_eq!(m.list().len(), 4, "0 keeps everything");
+    m.set_settings(hauler_ipc::SettingsPatch { history_days: Some(30), ..Default::default() }).unwrap();
+    let left: Vec<_> = m.list().iter().map(|t| t.id).collect();
+    assert_eq!(left, vec![recent, paused]);
+    assert!(m.get(old).is_err() && m.get(old_failed).is_err());
+    assert!(m.set_settings(hauler_ipc::SettingsPatch { history_days: Some(40_000), ..Default::default() }).is_err());
+}
+
+#[test]
+fn https_only_refuses_plain_http_when_adding() {
+    let m = Manager::new(Store::in_memory().unwrap(), &std::env::temp_dir()).unwrap();
+    m.set_settings(hauler_ipc::SettingsPatch { https_only: Some(true), ..Default::default() }).unwrap();
+    let plain = m.add(AddParams { url: "http://example.com/a.bin".into(), paused: true, ..Default::default() });
+    assert!(plain.unwrap_err().message.contains("https"));
+    assert!(m.add(AddParams { url: "https://example.com/a.bin".into(), paused: true, ..Default::default() }).is_ok());
+}

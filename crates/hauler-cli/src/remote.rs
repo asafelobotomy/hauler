@@ -6,13 +6,13 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use anyhow::Context;
-use clap::{ArgAction, Args};
+use clap::Args;
 use hauler_ipc::{AddParams, Client, Event, SettingsPatch, TaskId, TaskInfo, TaskState};
 use indicatif::HumanBytes;
 
 use crate::{parse_header, parse_size};
 
-async fn connect() -> anyhow::Result<Client> {
+pub(crate) async fn connect() -> anyhow::Result<Client> {
     let path = hauler_ipc::default_socket_path();
     Client::connect(&path).await.with_context(|| {
         format!(
@@ -84,24 +84,7 @@ pub async fn add(args: AddArgs) -> anyhow::Result<ExitCode> {
     Ok(ExitCode::SUCCESS)
 }
 
-/// List downloads.
-#[derive(Args)]
-pub struct ListArgs {
-    /// Hide completed downloads.
-    #[arg(short, long)]
-    active: bool,
-}
-
-pub async fn list(args: ListArgs) -> anyhow::Result<ExitCode> {
-    let mut tasks = connect().await?.list().await?;
-    if args.active {
-        tasks.retain(|t| t.state != TaskState::Completed);
-    }
-    print_table(&tasks);
-    Ok(ExitCode::SUCCESS)
-}
-
-fn print_table(tasks: &[TaskInfo]) {
+pub(crate) fn print_table(tasks: &[TaskInfo]) {
     println!("{:>4}  {:<9} {:>6} {:>11} {:>11}  NAME", "ID", "STATE", "DONE", "SIZE", "SPEED");
     for t in tasks {
         let done = match t.size {
@@ -149,25 +132,6 @@ pub async fn resume(args: IdsArgs) -> anyhow::Result<ExitCode> {
     Ok(ExitCode::SUCCESS)
 }
 
-/// Remove downloads from the list.
-#[derive(Args)]
-pub struct RemoveArgs {
-    #[arg(required = true)]
-    ids: Vec<TaskId>,
-    /// Also delete the downloaded and partial files.
-    #[arg(long)]
-    delete: bool,
-}
-
-pub async fn remove(args: RemoveArgs) -> anyhow::Result<ExitCode> {
-    let mut client = connect().await?;
-    for id in args.ids {
-        client.remove(id, args.delete).await?;
-        println!("removed {id}");
-    }
-    Ok(ExitCode::SUCCESS)
-}
-
 /// Set a speed limit for one download, or for all together.
 #[derive(Args)]
 pub struct LimitArgs {
@@ -209,60 +173,6 @@ pub struct PriorityArgs {
 pub async fn priority(args: PriorityArgs) -> anyhow::Result<ExitCode> {
     let t = connect().await?.set_priority(args.id, args.priority).await?;
     println!("{}\tpriority {}", t.id, t.priority);
-    Ok(ExitCode::SUCCESS)
-}
-
-pub async fn status() -> anyhow::Result<ExitCode> {
-    let s = connect().await?.status().await?;
-    println!("haulerd {}", s.version);
-    println!("running {}, queued {}, {}/s", s.running, s.queued, HumanBytes(s.speed));
-    let net = match (s.network.online, s.network.metered, s.network.open) {
-        (false, _, _) => "offline, downloads held",
-        (true, true, false) => "metered, downloads held",
-        (true, true, true) => "metered, downloading anyway",
-        _ => "online",
-    };
-    println!("network {net}");
-    Ok(ExitCode::SUCCESS)
-}
-
-/// Show or change daemon settings.
-#[derive(Args)]
-pub struct ConfigArgs {
-    /// Downloads running at once.
-    #[arg(long)]
-    max_active: Option<u32>,
-    /// Default connections per download.
-    #[arg(long, value_parser = clap::value_parser!(u16).range(1..=32))]
-    connections: Option<u16>,
-    /// Default download directory.
-    #[arg(long)]
-    dir: Option<PathBuf>,
-    /// Pause while on a metered connection.
-    #[arg(long, action = ArgAction::Set)]
-    pause_on_metered: Option<bool>,
-}
-
-pub async fn config(args: ConfigArgs) -> anyhow::Result<ExitCode> {
-    let mut client = connect().await?;
-    let patch = SettingsPatch {
-        max_active: args.max_active,
-        connections: args.connections,
-        download_dir: args.dir.map(|d| std::path::absolute(d).map(|p| p.to_string_lossy().into_owned())).transpose()?,
-        global_limit: None,
-        pause_on_metered: args.pause_on_metered,
-    };
-    let any = patch.max_active.is_some()
-        || patch.connections.is_some()
-        || patch.download_dir.is_some()
-        || patch.pause_on_metered.is_some();
-    let s = if any { client.set_settings(&patch).await? } else { client.settings().await? };
-    println!("max_active        {}", s.max_active);
-    println!("connections       {}", s.connections);
-    let limit = if s.global_limit == 0 { "none".into() } else { format!("{}/s", HumanBytes(s.global_limit)) };
-    println!("global_limit      {limit}");
-    println!("download_dir      {}", s.download_dir);
-    println!("pause_on_metered  {}", s.pause_on_metered);
     Ok(ExitCode::SUCCESS)
 }
 

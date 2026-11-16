@@ -11,6 +11,7 @@ Fast, resumable multi-connection downloader for Linux: engine library, `hauler` 
 - Install for your user: `scripts/install-user.sh` (release build into `~/.local/bin`, systemd user units, app menu entry).
 - Benchmark: `scripts/bench.sh <size-mib> <kib-per-sec> <slow-every> <connections>` (vs aria2c, local throttled test server).
 - Desktop screenshots, headless: `QT_QPA_PLATFORM=offscreen QT_QPA_PLATFORMTHEME=kde HAULER_DESKTOP_DEMO=/tmp/shot target/debug/hauler-desktop`.
+- Settings page tests: `node --test 'tests/uq/*.test.mjs'`, `QML_XHR_ALLOW_FILE_READ=1 QT_QPA_PLATFORM=offscreen qmltestrunner -import tests/uq/stub -input tests/uq`, and `cargo test -p hauler-cli --test uq_page`; after changing what a command prints, `UPDATE_FIXTURES=1` on the last one rewrites `tests/uq/fixtures/` (`tests/uq/README.md`).
 - Debug logs: `HAULER_LOG=debug`.
 
 ## Layout
@@ -19,7 +20,7 @@ Fast, resumable multi-connection downloader for Linux: engine library, `hauler` 
 - `crates/hauler-daemon`: `haulerd` (queue, SQLite store, RPC server, D-Bus; `src/bus.rs` serves `org.hauler.Hauler1` and uQ's launcher provider on the session bus).
 - `crates/hauler-cli`: `hauler`. `crates/hauler-desktop`: Kirigami UI via cxx-qt (`qml/`, `cpp/`, `src/`, `build.rs`).
 - `crates/hauler-testserver`: throttled HTTP server with Range/ETag for tests and benchmarks.
-- `uq/`: uQ desktop integration (bar widget, launcher provider, D-Bus service file), installed by the PKGBUILD; check it with `uqctl integrations check uq/` from uQ.
+- `uq/`: uQ desktop integration (bar widget, launcher provider, Downloads page in Settings, D-Bus service file), installed by the PKGBUILD; check it with `uqctl integrations check uq/` from uQ.
 - `dist/`: arch PKGBUILD, systemd units, desktop file. `scripts/`: build-appimage, build-static, install-user, bench, check-loc.
 
 ## Conventions
