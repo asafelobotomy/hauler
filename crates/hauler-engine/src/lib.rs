@@ -22,7 +22,7 @@ mod probe;
 mod state;
 
 pub use checksum::{Checksum, sha256_file};
-pub use download::{Options, Outcome, Progress, Task, client, prepare};
+pub use download::{Options, Outcome, Partial, Progress, Task, client, free_space, partials, prepare};
 pub use error::{Error, Result};
 pub use limit::Limiter;
 pub use probe::{Probe, probe, sanitize_filename};

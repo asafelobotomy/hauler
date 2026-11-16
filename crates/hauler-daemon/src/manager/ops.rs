@@ -41,6 +41,9 @@ impl Manager {
         }
 
         let mut inner = self.inner.lock().unwrap();
+        if inner.settings.https_only && url.scheme() != "https" {
+            return Err(invalid("only https downloads are allowed (Settings: https only)".into()));
+        }
         let dir = p.dir.unwrap_or_else(|| inner.settings.download_dir.clone());
         let dir_path = Path::new(&dir);
         if !dir_path.is_absolute() || !dir_path.is_dir() {
@@ -63,6 +66,7 @@ impl Manager {
             error: None,
             added_at: now(),
             finished_at: None,
+            has_headers: false,
         };
         let spec = TaskSpec {
             filename: info.name.clone(),
@@ -214,6 +218,7 @@ impl Manager {
         let invalid = |m: &str| RpcError::new(RpcError::INVALID_PARAMS, m);
         let mut inner = self.inner.lock().unwrap();
         let mut s = inner.settings.clone();
+        let patch_touches_history = patch.history_days.is_some();
         if let Some(v) = patch.max_active {
             if v == 0 {
                 return Err(invalid("max_active must be at least 1"));
@@ -238,6 +243,21 @@ impl Manager {
         if let Some(v) = patch.pause_on_metered {
             s.pause_on_metered = v;
         }
+        if let Some(v) = patch.history_days {
+            if v > 36_500 {
+                return Err(invalid("history_days must be at most 36500"));
+            }
+            s.history_days = v;
+        }
+        if let Some(v) = patch.scrub_headers {
+            s.scrub_headers = v;
+        }
+        if let Some(v) = patch.https_only {
+            s.https_only = v;
+        }
+        if let Some(v) = patch.min_free {
+            s.min_free = v;
+        }
         self.store.save_settings(&s).map_err(internal)?;
         self.global.set_rate(s.global_limit);
         let network_before = inner.network();
@@ -247,6 +267,12 @@ impl Manager {
         self.emit(Event::Settings { settings: s.clone() });
         if network != network_before {
             self.emit(Event::Network { network });
+        }
+        if patch_touches_history {
+            self.prune_history();
+        }
+        if s.scrub_headers {
+            self.forget_headers();
         }
         self.wake.notify_one();
         Ok(s)

@@ -1,0 +1,25 @@
+{
+  "changes": [
+    {
+      "detail": "http://127.0.0.1:8098/big is plain http",
+      "group": "Would fail to start",
+      "label": "big-archive.tar.zst",
+      "reversible": true
+    },
+    {
+      "detail": "http://127.0.0.1:8099/later is plain http",
+      "group": "Would fail to start",
+      "label": "later.7z",
+      "reversible": true
+    },
+    {
+      "detail": "http://127.0.0.1:8099/a is plain http",
+      "group": "Would fail to start",
+      "label": "another.bin",
+      "reversible": true
+    }
+  ],
+  "reason": "",
+  "summary": "3 waiting downloads use plain http and will fail.",
+  "would_refuse": false
+}

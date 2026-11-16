@@ -1,0 +1,6 @@
+{
+  "changes": [],
+  "reason": "connections: must be 1 to 32",
+  "summary": "connections: must be 1 to 32",
+  "would_refuse": true
+}

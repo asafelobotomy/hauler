@@ -51,3 +51,45 @@ jobs:
       - uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2
         with:
           command: check advisories
+
+  # hauler's Downloads page in uQ Settings (uq/pages/hauler/): its Node and QML tests, and uqctl's own check of
+  # the uq/ folder. The command-line contract the page relies on is tested in the Arch job above
+  # (cargo test -p hauler-cli --test uq_page).
+  uq:
+    name: uQ Settings page
+    runs-on: ubuntu-24.04
+    env:
+      # The uQ commit whose `uqctl` and settings page test kit this repo follows: v0.3.0 (uq_api 3),
+      # until the tag is pushed. Then this goes back to the tag (`--tag`).
+      UQ_REV: fc7ab68ff7555d0ba950e853635a99492490c5f2
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install Qt Quick and qmltestrunner
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qt6-declarative-dev-tools \
+            qml6-module-qtquick qml6-module-qtquick-layouts qml6-module-qtquick-controls \
+            qml6-module-qttest qml6-module-qtqml qml6-module-qtqml-workerscript \
+            qml6-module-qtquick-window qml6-module-qtquick-templates qml6-module-qtquick-dialogs
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
+      - name: Page logic and manifest tests (Node)
+        run: node --test 'tests/uq/*.test.mjs'
+      # QML_XHR_ALLOW_FILE_READ lets the page tests read tests/uq/fixtures/.
+      - name: Page tests (QML, offscreen)
+        run: QML_XHR_ALLOW_FILE_READ=1 QT_QPA_PLATFORM=offscreen /usr/lib/qt6/bin/qmltestrunner -import tests/uq/stub -input tests/uq
+      - name: Cache uqctl
+        id: uqctl
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.uq
+          key: uqctl-${{ env.UQ_REV }}
+      - name: Build uqctl
+        if: steps.uqctl.outputs.cache-hit != 'true'
+        run: cargo install --locked --git https://github.com/asafelobotomy/uq --rev "$UQ_REV" uqctl --root "$HOME/.uq"
+      # `--no-programs` skips only the "program exists" check: hauler isn't installed here.
+      - name: uQ integration check
+        run: ~/.uq/bin/uqctl integrations check --no-programs uq/

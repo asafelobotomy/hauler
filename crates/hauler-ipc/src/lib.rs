@@ -115,6 +115,9 @@ pub struct TaskInfo {
     /// Unix seconds.
     pub added_at: i64,
     pub finished_at: Option<i64>,
+    /// The daemon holds request headers (cookies, tokens) for this download.
+    #[serde(default)]
+    pub has_headers: bool,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -146,6 +149,22 @@ pub struct Settings {
     pub download_dir: String,
     /// Pause downloads while the connection is metered.
     pub pause_on_metered: bool,
+    /// Forget finished and failed downloads after this many days; 0 keeps them.
+    #[serde(default)]
+    pub history_days: u32,
+    /// Drop a download's saved request headers (cookies, tokens) once it completes.
+    #[serde(default = "yes")]
+    pub scrub_headers: bool,
+    /// Refuse http URLs, and redirects that end on one.
+    #[serde(default)]
+    pub https_only: bool,
+    /// Leave at least this many bytes free on the disk, in bytes; 0 means no reserve.
+    #[serde(default)]
+    pub min_free: u64,
+}
+
+fn yes() -> bool {
+    true
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -155,6 +174,10 @@ pub struct SettingsPatch {
     pub global_limit: Option<u64>,
     pub download_dir: Option<String>,
     pub pause_on_metered: Option<bool>,
+    pub history_days: Option<u32>,
+    pub scrub_headers: Option<bool>,
+    pub https_only: Option<bool>,
+    pub min_free: Option<u64>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -266,6 +289,8 @@ pub mod method {
     pub const SET_SETTINGS: &str = "set_settings";
     pub const STATUS: &str = "status";
     pub const SEGMENTS: &str = "segments";
+    /// Drop the saved request headers of completed downloads; answers how many held any.
+    pub const FORGET_HEADERS: &str = "forget_headers";
     /// After the reply, the connection carries `event` notifications only.
     pub const SUBSCRIBE: &str = "subscribe";
     pub const EVENT: &str = "event";

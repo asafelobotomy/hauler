@@ -1,0 +1,13 @@
+{
+  "changes": [
+    {
+      "detail": "finished 40 days ago",
+      "group": "Removed from the list",
+      "label": "ubuntu-26.04-desktop.iso",
+      "reversible": false
+    }
+  ],
+  "reason": "",
+  "summary": "1 download leave the list. Files stay.",
+  "would_refuse": false
+}

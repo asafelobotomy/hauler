@@ -1,0 +1,276 @@
+# Hauler's "Downloads" page in uQ Settings: the queue, the history of finished downloads, where they are
+# saved and how much space they take, what Hauler keeps and refuses for safety, and its settings.
+# Installed to /usr/share/uq/settings/pages/hauler/ by hauler's package. Reference: docs/settings-pages.md in
+# the uQ repository.
+#
+# Every command is `hauler` as you, talking to haulerd over its socket (systemd starts it on the first
+# call). Nothing here runs as root. Each command that removes something has a `--dry-run --json` twin
+# (`preview-*`) that prints one plan document, so the confirmation sheet shows what would go first.
+# uq_api 3: previewed confirmations.
+uq_api = 3
+id = "hauler"
+name = "Downloads"
+icon = "folder-download"
+category = "apps"
+qml = "Page.qml"
+keywords = ["hauler", "downloads", "download manager", "history", "storage", "disk", "https", "cookies", "privacy", "speed limit"]
+
+[[setting]]
+id = "now"
+label = "Downloading now"
+keywords = ["queue", "progress", "speed", "pause", "resume"]
+
+[[setting]]
+id = "add"
+label = "Add a link"
+keywords = ["url", "download a file"]
+
+[[setting]]
+id = "history"
+label = "Download history"
+keywords = ["finished", "completed", "failed", "clear history", "remove"]
+
+[[setting]]
+id = "retention"
+label = "Keep history for"
+keywords = ["forget old downloads", "days"]
+
+[[setting]]
+id = "folder"
+label = "Download folder"
+keywords = ["directory", "save to", "where"]
+
+[[setting]]
+id = "space"
+label = "Disk space"
+keywords = ["free space", "full disk", "partial", "part files"]
+
+[[setting]]
+id = "reserve"
+label = "Keep space free"
+keywords = ["reserve", "minimum free", "disk full"]
+
+[[setting]]
+id = "leftovers"
+label = "Unfinished leftovers"
+keywords = ["part", "partial", "clean up", "orphan"]
+
+[[setting]]
+id = "https-only"
+label = "Only allow https"
+keywords = ["http", "insecure", "plain", "encrypted", "redirect"]
+
+[[setting]]
+id = "saved-logins"
+label = "Saved cookies and logins"
+keywords = ["cookie", "token", "header", "forget", "privacy"]
+
+[[setting]]
+id = "preferences"
+label = "Download preferences"
+keywords = ["connections", "speed limit", "metered", "downloads at once", "max active"]
+
+[requires]
+bins = ["hauler"]
+
+# ---- Reads: each is followed live, so the page shows what Hauler and the other windows do ----
+
+# The running and waiting counts, the speed and the network, for the Overview.
+[[command]]
+id = "status"
+argv = ["/usr/bin/hauler", "status", "--json"]
+output = "json"
+timeout_ms = 10000
+watch = { signals = [{ bus = "session", path = "/org/hauler/Hauler1", sender = "org.hauler.Hauler1", interface = "org.hauler.Hauler1", member = "Changed" }, { bus = "session", path = "/org/hauler/Hauler1", sender = "org.hauler.Hauler1", interface = "org.hauler.Hauler1", member = "Finished" }, { bus = "session", path = "/org/hauler/Hauler1", sender = "org.hauler.Hauler1", interface = "org.freedesktop.DBus.Properties", member = "PropertiesChanged", properties = ["ActiveCount", "QueuedCount"] }] }
+
+# Everything still to finish, with how far it got. Progress arrives at most once a second.
+[[command]]
+id = "queue"
+argv = ["/usr/bin/hauler", "list", "--json", "--active"]
+output = "json"
+timeout_ms = 10000
+watch = { signals = [{ bus = "session", path = "/org/hauler/Hauler1", sender = "org.hauler.Hauler1", interface = "org.hauler.Hauler1", member = "Changed" }, { bus = "session", path = "/org/hauler/Hauler1", sender = "org.hauler.Hauler1", interface = "org.hauler.Hauler1", member = "Finished" }, { bus = "session", path = "/org/hauler/Hauler1", sender = "org.hauler.Hauler1", interface = "org.freedesktop.DBus.Properties", member = "PropertiesChanged", properties = ["ActiveCount", "QueuedCount", "BytesDone"] }] }
+
+# Completed and failed downloads, with whether each file is still there.
+[[command]]
+id = "history"
+argv = ["/usr/bin/hauler", "list", "--json", "--finished"]
+output = "json"
+timeout_ms = 15000
+watch = { signals = [{ bus = "session", path = "/org/hauler/Hauler1", sender = "org.hauler.Hauler1", interface = "org.hauler.Hauler1", member = "Changed" }, { bus = "session", path = "/org/hauler/Hauler1", sender = "org.hauler.Hauler1", interface = "org.hauler.Hauler1", member = "Finished" }] }
+
+# The download folder, its free space, and what Hauler's downloads take.
+[[command]]
+id = "storage"
+argv = ["/usr/bin/hauler", "storage", "--json"]
+output = "json"
+timeout_ms = 20000
+watch = { signals = [{ bus = "session", path = "/org/hauler/Hauler1", sender = "org.hauler.Hauler1", interface = "org.hauler.Hauler1", member = "Changed" }, { bus = "session", path = "/org/hauler/Hauler1", sender = "org.hauler.Hauler1", interface = "org.hauler.Hauler1", member = "Finished" }] }
+
+# Every setting with what it accepts; followed, so a change made in Hauler's own window shows here.
+[[command]]
+id = "config"
+argv = ["/usr/bin/hauler", "config", "show", "--json"]
+output = "json"
+timeout_ms = 10000
+watch = { signals = [{ bus = "session", path = "/org/hauler/Hauler1", sender = "org.hauler.Hauler1", interface = "org.hauler.Hauler1", member = "Changed" }, { bus = "session", path = "/org/hauler/Hauler1", sender = "org.hauler.Hauler1", interface = "org.hauler.Hauler1", member = "Finished" }] }
+
+# ---- Previews: what a change would do, one plan document each (reads, so they don't ask) ----
+
+[[command]]
+id = "preview-config"
+argv = ["/usr/bin/hauler", "config", "set", "--dry-run", "--json"]
+output = "json"
+timeout_ms = 10000
+args = [{ name = "key", pattern = '^(max_active|connections|global_limit|download_dir|pause_on_metered|history_days|scrub_headers|https_only|min_free)$' }, { name = "value", pattern = '^[^\x00-\x1f\x7f]{0,600}$' }]
+
+[[command]]
+id = "preview-remove"
+argv = ["/usr/bin/hauler", "remove", "--dry-run", "--json"]
+output = "json"
+timeout_ms = 10000
+args = [{ name = "id", pattern = '^[1-9][0-9]{0,17}$' }]
+
+[[command]]
+id = "preview-remove-files"
+argv = ["/usr/bin/hauler", "remove", "--delete", "--dry-run", "--json"]
+output = "json"
+timeout_ms = 10000
+args = [{ name = "id", pattern = '^[1-9][0-9]{0,17}$' }]
+
+[[command]]
+id = "preview-clear"
+argv = ["/usr/bin/hauler", "clear", "--dry-run", "--json", "--state"]
+output = "json"
+timeout_ms = 20000
+args = [{ name = "state", pattern = '^(finished|completed|failed)$' }]
+
+[[command]]
+id = "preview-clear-files"
+argv = ["/usr/bin/hauler", "clear", "--delete-files", "--dry-run", "--json", "--state"]
+output = "json"
+timeout_ms = 20000
+args = [{ name = "state", pattern = '^(finished|completed|failed)$' }]
+
+[[command]]
+id = "preview-forget-headers"
+argv = ["/usr/bin/hauler", "forget-headers", "--dry-run", "--json"]
+output = "json"
+timeout_ms = 10000
+
+[[command]]
+id = "preview-cleanup"
+argv = ["/usr/bin/hauler", "cleanup", "--dry-run", "--json"]
+output = "json"
+timeout_ms = 20000
+
+# ---- The queue ----------------------------------------------------------------------------------
+
+[[command]]
+id = "pause-all"
+argv = ["/usr/bin/hauler", "pause", "--all"]
+output = "text"
+timeout_ms = 10000
+
+[[command]]
+id = "resume-all"
+argv = ["/usr/bin/hauler", "resume", "--all"]
+output = "text"
+timeout_ms = 10000
+
+[[command]]
+id = "pause-one"
+argv = ["/usr/bin/hauler", "pause"]
+output = "text"
+timeout_ms = 10000
+args = [{ name = "id", pattern = '^[1-9][0-9]{0,17}$' }]
+
+[[command]]
+id = "resume-one"
+argv = ["/usr/bin/hauler", "resume"]
+output = "text"
+timeout_ms = 10000
+args = [{ name = "id", pattern = '^[1-9][0-9]{0,17}$' }]
+
+# Queues one link. Hauler checks it (http or https only, and https only when that is on).
+[[command]]
+id = "add-url"
+argv = ["/usr/bin/hauler", "add"]
+output = "text"
+timeout_ms = 10000
+args = [{ name = "url", pattern = '^https?://[^\x00-\x20\x7f]{1,1000}$' }]
+
+# ---- Settings (a change that can remove something shows a plan first) -----------------------------
+
+# Hauler checks every value and says why when it refuses.
+[[command]]
+id = "config-set"
+argv = ["/usr/bin/hauler", "config", "set", "--json"]
+output = "json"
+timeout_ms = 10000
+args = [{ name = "key", pattern = '^(max_active|connections|global_limit|download_dir|pause_on_metered|history_days|scrub_headers|https_only|min_free)$' }, { name = "value", pattern = '^[^\x00-\x1f\x7f]{0,600}$' }]
+
+# The same, for a change that would remove history or forget saved logins: the plan comes first.
+[[command]]
+id = "config-set-confirmed"
+argv = ["/usr/bin/hauler", "config", "set", "--json"]
+output = "json"
+timeout_ms = 10000
+args = [{ name = "key", pattern = '^(max_active|connections|global_limit|download_dir|pause_on_metered|history_days|scrub_headers|https_only|min_free)$' }, { name = "value", pattern = '^[^\x00-\x1f\x7f]{0,600}$' }]
+confirm = "Apply the change to %s?"
+preview = "preview-config"
+
+# ---- Tidying: every one shows what goes before it goes; none can be forced --------------------------
+
+[[command]]
+id = "remove-one"
+argv = ["/usr/bin/hauler", "remove", "--json"]
+output = "json"
+timeout_ms = 10000
+args = [{ name = "id", pattern = '^[1-9][0-9]{0,17}$' }]
+confirm = "Remove this download from the list?"
+preview = "preview-remove"
+
+[[command]]
+id = "remove-one-files"
+argv = ["/usr/bin/hauler", "remove", "--delete", "--json"]
+output = "json"
+timeout_ms = 10000
+args = [{ name = "id", pattern = '^[1-9][0-9]{0,17}$' }]
+confirm = "Remove this download and delete its file?"
+preview = "preview-remove-files"
+
+[[command]]
+id = "clear-history"
+argv = ["/usr/bin/hauler", "clear", "--json", "--state"]
+output = "json"
+timeout_ms = 60000
+args = [{ name = "state", pattern = '^(finished|completed|failed)$' }]
+confirm = "Clear these downloads from the list?"
+preview = "preview-clear"
+
+[[command]]
+id = "clear-history-files"
+argv = ["/usr/bin/hauler", "clear", "--delete-files", "--json", "--state"]
+output = "json"
+timeout_ms = 60000
+args = [{ name = "state", pattern = '^(finished|completed|failed)$' }]
+confirm = "Clear these downloads and delete their files?"
+preview = "preview-clear-files"
+
+[[command]]
+id = "forget-headers"
+argv = ["/usr/bin/hauler", "forget-headers", "--json"]
+output = "json"
+timeout_ms = 10000
+confirm = "Forget the saved cookies and headers of finished downloads?"
+preview = "preview-forget-headers"
+
+# Only a .part file with its .hauler state that nothing is working on, in the download folders.
+[[command]]
+id = "cleanup"
+argv = ["/usr/bin/hauler", "cleanup", "--json"]
+output = "json"
+timeout_ms = 60000
+confirm = "Delete these unfinished downloads?"
+preview = "preview-cleanup"

@@ -1,0 +1,13 @@
+{
+  "changes": [
+    {
+      "detail": "http://127.0.0.1:8099/w.png",
+      "group": "Saved cookies and headers dropped",
+      "label": "wallpaper.png",
+      "reversible": false
+    }
+  ],
+  "reason": "",
+  "summary": "1 finished download forget their saved cookies and headers.",
+  "would_refuse": false
+}

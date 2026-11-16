@@ -1,0 +1,14 @@
+{
+  "ok": true,
+  "settings": {
+    "connections": 8,
+    "download_dir": "/home/user/Downloads",
+    "global_limit": 0,
+    "history_days": 0,
+    "https_only": false,
+    "max_active": 3,
+    "min_free": 0,
+    "pause_on_metered": true,
+    "scrub_headers": false
+  }
+}

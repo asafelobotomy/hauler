@@ -93,3 +93,46 @@ pub(super) async fn finish(opts: &Options, paths: &Paths) -> Result<Outcome> {
     }
     Ok(Outcome::Completed(paths.target.clone()))
 }
+
+/// Unfinished download data in a folder: a `.part` file with its `.hauler`
+/// state, which no process is working on right now.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Partial {
+    /// The name the finished file will have.
+    pub name: String,
+    pub part: PathBuf,
+    pub state: PathBuf,
+    /// Bytes the two files take on disk.
+    pub bytes: u64,
+}
+
+/// The unfinished downloads in `dir` (not below it), by name. Only a
+/// `.part` that has a readable `.hauler` beside it counts, so files that
+/// merely end in `.part` are left alone, and one another download holds
+/// open is skipped.
+pub fn partials(dir: &Path) -> std::io::Result<Vec<Partial>> {
+    let mut found = Vec::new();
+    for entry in fs::read_dir(dir)? {
+        let entry = entry?;
+        let part = entry.path();
+        let Some(name) = part.file_name().and_then(|n| n.to_str()).and_then(|n| n.strip_suffix(".part")) else {
+            continue;
+        };
+        if name.is_empty() || !entry.file_type()?.is_file() {
+            continue;
+        }
+        let state = state_path(&dir.join(name));
+        if !matches!(ResumeState::load(&state), Ok(Some(_))) {
+            continue;
+        }
+        let Ok(file) = OpenOptions::new().read(true).open(&part) else { continue };
+        if rustix::fs::flock(&file, rustix::fs::FlockOperation::NonBlockingLockExclusive).is_err() {
+            continue;
+        }
+        let bytes =
+            fs::metadata(&part).map(|m| m.len()).unwrap_or(0) + fs::metadata(&state).map(|m| m.len()).unwrap_or(0);
+        found.push(Partial { name: name.to_owned(), part, state, bytes });
+    }
+    found.sort_by(|a, b| a.name.cmp(&b.name));
+    Ok(found)
+}
