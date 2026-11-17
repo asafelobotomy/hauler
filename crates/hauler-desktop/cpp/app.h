@@ -14,3 +14,5 @@ bool hauler_grab_window(rust::Str path);
 // The themed icon name for a file's MIME type, guessed from its name.
 rust::String hauler_icon_for_file(rust::Str name);
 void hauler_copy_text(rust::Str text);
+// Whether a QML style module (`org.kde.desktop`) is installed in the QML import paths.
+bool hauler_qml_style_installed(rust::Str name);
