@@ -15,11 +15,12 @@ fn main() {
     }
     cxx_qt::init_qml_module!("org.hauler.desktop");
 
-    // Plasma provides the native Kirigami style; elsewhere fall back to Fusion,
-    // unless the user picked a style themselves.
+    // qqc2-desktop-style draws through the application palette and Kirigami's colour scheme, so
+    // it follows uQ's theme (see `cpp/theme.cpp`) on any desktop; Fusion, which gets none of
+    // Kirigami's colours, is only the fallback without it. A style the user picked stays.
     if std::env::var_os("QT_QUICK_CONTROLS_STYLE").is_none() {
-        let on_kde = std::env::var("XDG_CURRENT_DESKTOP").is_ok_and(|d| d.split(':').any(|p| p == "KDE"));
-        QQuickStyle::set_style(&QString::from(if on_kde { "org.kde.desktop" } else { "Fusion" }));
+        let desktop = app::ffi::hauler_qml_style_installed("org.kde.desktop");
+        QQuickStyle::set_style(&QString::from(if desktop { "org.kde.desktop" } else { "Fusion" }));
     }
 
     let mut app = app::ffi::hauler_new_application(env!("CARGO_PKG_VERSION"));

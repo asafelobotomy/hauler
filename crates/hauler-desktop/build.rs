@@ -21,7 +21,8 @@ fn main() {
     .qt_module("QuickControls2")
     .qt_module("Widgets")
     .files(["src/backend.rs", "src/app.rs"])
-    .cpp_file("cpp/app.cpp");
+    .cpp_file("cpp/app.cpp")
+    .cpp_file("cpp/theme.cpp");
     // SAFETY: only adds a warning flag; nothing cxx-qt relies on changes.
     // GCC 16 warns about Qt's own headers here, which we cannot fix.
     let builder = unsafe {

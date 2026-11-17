@@ -117,6 +117,8 @@ While `haulerd` runs it owns `org.hauler.Hauler1` on the session bus, for deskto
 
 Anyone on your session bus can call these, the same trust as the socket.
 
+The desktop app follows uQ's theme by default: it reads `~/.local/state/uq/theme` (`kde/uq.colors` for the colours, `tokens.json` for the icon theme and font) at start and again whenever uQ applies a theme, so it needs no restart. Without uQ it keeps the system look.
+
 `uq/` holds the files that plug hauler into the [uQ](https://github.com/asafelobotomy/uq) desktop: a Downloads widget for the bar, the launcher provider, a **Downloads** page in uQ Settings (queue, history, storage, security and preferences, with a plan shown before anything is deleted), and a D-Bus service file that starts `haulerd` through `hauler.service`. The page follows `Changed(s what)` (`"settings"` or `"history"`) and `Finished` on the same interface. The package installs them; they do nothing without uQ. See `uq/README.md`.
 
 ## Benchmarks

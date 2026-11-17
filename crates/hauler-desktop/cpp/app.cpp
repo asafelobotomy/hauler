@@ -1,8 +1,12 @@
 #include "hauler-desktop/cpp/app.h"
+#include "hauler-desktop/cpp/theme.h"
 
 #include <QClipboard>
 #include <QGuiApplication>
+#include <QDir>
+#include <QFile>
 #include <QIcon>
+#include <QLibraryInfo>
 #include <QMimeDatabase>
 #include <QQuickWindow>
 #include <QString>
@@ -28,6 +32,8 @@ std::unique_ptr<QApplication> hauler_new_application(rust::Str version)
     QApplication::setDesktopFileName(QStringLiteral("hauler"));
     // Closing the window hides it to the tray; only Quit ends the app.
     QApplication::setQuitOnLastWindowClosed(false);
+    // Colours, icons and font come from uQ's theme (default), live; the system look without uQ.
+    hauler_follow_uq_theme();
     return app;
 }
 
@@ -55,6 +61,19 @@ rust::String hauler_icon_for_file(rust::Str name)
     if (!QIcon::hasThemeIcon(icon))
         icon = mime.genericIconName();
     return rust::String(icon.toStdString());
+}
+
+bool hauler_qml_style_installed(rust::Str name)
+{
+    QStringList roots = {QLibraryInfo::path(QLibraryInfo::QmlImportsPath)};
+    for (const char *var : {"QML_IMPORT_PATH", "QML2_IMPORT_PATH"})
+        roots += qEnvironmentVariable(var).split(QDir::listSeparator(), Qt::SkipEmptyParts);
+    const QString module = toQString(name).replace(QLatin1Char('.'), QLatin1Char('/'));
+    for (const QString &root : roots) {
+        if (QFile::exists(root + QLatin1Char('/') + module + QStringLiteral("/qmldir")))
+            return true;
+    }
+    return false;
 }
 
 void hauler_copy_text(rust::Str text)

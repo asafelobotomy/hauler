@@ -14,6 +14,8 @@ Fast, resumable multi-connection downloader for Linux: engine library, `hauler` 
 - Settings page tests: `node --test 'tests/uq/*.test.mjs'`, `QML_XHR_ALLOW_FILE_READ=1 QT_QPA_PLATFORM=offscreen qmltestrunner -import tests/uq/stub -input tests/uq`, and `cargo test -p hauler-cli --test uq_page`; after changing what a command prints, `UPDATE_FIXTURES=1` on the last one rewrites `tests/uq/fixtures/` (`tests/uq/README.md`).
 - Debug logs: `HAULER_LOG=debug`.
 
+- Theme check, headless: copy a folder from uQ's `crates/uq-core/tests/golden/<theme>` to `$XDG_STATE_HOME/uq/theme`, run `hauler-desktop` under Xvfb; swapping the folder (rename) must restyle the open window.
+
 ## Layout
 - `crates/hauler-engine`: download library (probe, segments, resume state, speed limits).
 - `crates/hauler-ipc`: JSON-RPC types and async client for the daemon socket.
