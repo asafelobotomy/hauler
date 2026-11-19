@@ -68,7 +68,10 @@ pub fn failure(error: &anyhow::Error) -> ExitCode {
         _ => "error",
     };
     let message = match code {
-        "daemon_down" => "haulerd isn't running. Start it with `systemctl --user start hauler.socket`.".to_string(),
+        "daemon_down" => {
+            "haulerd isn't running and couldn't be started. Start it with `systemctl --user start hauler.socket`."
+                .to_string()
+        }
         _ => format!("{error:#}"),
     };
     println!("{}", json!({ "ok": false, "error": message, "code": code }));

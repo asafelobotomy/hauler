@@ -241,8 +241,8 @@ SettingsPage {
         ErrorCard {
             objectName: "daemon-down"
             visible: page.daemonDown
-            title: "Hauler isn't running"
-            detail: "Start it with systemctl --user start hauler.socket, or open Hauler. This page fills in once it answers."
+            title: "Hauler's background service couldn't be started"
+            detail: "This page starts it by itself when it opens, and that didn't work. Start it with systemctl --user start hauler.socket, or open Hauler; this page fills in once it answers."
             Layout.fillWidth: true
         },
         ErrorCard {

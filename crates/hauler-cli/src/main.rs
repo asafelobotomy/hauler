@@ -3,6 +3,7 @@ use std::process::ExitCode;
 use clap::{Parser, Subcommand};
 use hauler_engine::header::{HeaderName, HeaderValue};
 
+mod autostart;
 mod config;
 mod get;
 mod json;
