@@ -14,7 +14,7 @@ use crate::{parse_header, parse_size};
 
 pub(crate) async fn connect() -> anyhow::Result<Client> {
     let path = hauler_ipc::default_socket_path();
-    Client::connect(&path).await.with_context(|| {
+    crate::autostart::connect(&path).await.with_context(|| {
         format!(
             "is haulerd running? Start it with `systemctl --user start hauler.socket` or run `haulerd` ({})",
             path.display()

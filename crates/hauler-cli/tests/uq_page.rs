@@ -82,6 +82,7 @@ fn hauler(socket: &Path, args: &[String]) -> Run {
         .args(args)
         .env("HAULER_SOCKET", socket)
         .env_remove("XDG_RUNTIME_DIR")
+        .env("HAULER_NO_AUTOSTART", "1")
         .env("RUST_BACKTRACE", "0")
         .output()
         .unwrap();
