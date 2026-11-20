@@ -59,9 +59,8 @@ jobs:
     name: uQ Settings page
     runs-on: ubuntu-24.04
     env:
-      # The uQ commit whose `uqctl` and settings page test kit this repo follows: v0.3.0 (uq_api 3),
-      # until the tag is pushed. Then this goes back to the tag (`--tag`).
-      UQ_REV: fc7ab68ff7555d0ba950e853635a99492490c5f2
+      # The uQ release whose `uqctl` checks the page (uq_api 3 is in every release since v0.3.0).
+      UQ_TAG: v0.3.21
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -86,10 +85,10 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.uq
-          key: uqctl-${{ env.UQ_REV }}
+          key: uqctl-${{ env.UQ_TAG }}
       - name: Build uqctl
         if: steps.uqctl.outputs.cache-hit != 'true'
-        run: cargo install --locked --git https://github.com/asafelobotomy/uq --rev "$UQ_REV" uqctl --root "$HOME/.uq"
+        run: cargo install --locked --git https://github.com/asafelobotomy/uq --tag "$UQ_TAG" uqctl --root "$HOME/.uq"
       # `--no-programs` skips only the "program exists" check: hauler isn't installed here.
       - name: uQ integration check
         run: ~/.uq/bin/uqctl integrations check --no-programs uq/
