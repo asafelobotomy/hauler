@@ -700,7 +700,7 @@ dependencies = [
 
 [[package]]
 name = "hauler-cli"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "anyhow",
  "clap",
@@ -722,7 +722,7 @@ dependencies = [
 
 [[package]]
 name = "hauler-daemon"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "anyhow",
  "clap",
@@ -745,7 +745,7 @@ dependencies = [
 
 [[package]]
 name = "hauler-desktop"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "cxx",
  "cxx-qt",
@@ -760,7 +760,7 @@ dependencies = [
 
 [[package]]
 name = "hauler-engine"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "fastrand",
  "futures-util",
@@ -780,7 +780,7 @@ dependencies = [
 
 [[package]]
 name = "hauler-ipc"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "libc",
  "serde",
@@ -791,7 +791,7 @@ dependencies = [
 
 [[package]]
 name = "hauler-testserver"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "bytes",
  "clap",
