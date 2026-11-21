@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- AppStream metadata: what software centres (GNOME Software, Discover, bindaru) show for the app. -->
+<component type="desktop-application">
+  <id>io.github.asafelobotomy.hauler</id>
+  <name>Hauler</name>
+  <summary>Fast, resumable downloads over parallel connections</summary>
+  <description>
+    <p>Hauler downloads files over several connections at once and picks up where it left off after a dropped connection, a crash or a reboot.</p>
+    <p>A small background service does the work, so downloads carry on with the window closed. On the uQ desktop they also show in a bar widget and in Settings.</p>
+  </description>
+  <launchable type="desktop-id">hauler.desktop</launchable>
+  <icon type="stock">folder-download</icon>
+  <url type="homepage">https://github.com/asafelobotomy/hauler</url>
+  <url type="bugtracker">https://github.com/asafelobotomy/hauler/issues</url>
+  <developer id="io.github.asafelobotomy">
+    <name>asafelobotomy</name>
+  </developer>
+  <categories>
+    <category>Network</category>
+    <category>FileTransfer</category>
+  </categories>
+  <keywords>
+    <keyword>download</keyword>
+    <keyword>manager</keyword>
+    <keyword>resume</keyword>
+    <keyword>http</keyword>
+  </keywords>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="0.2.2" date="2026-11-19">
+      <description>
+        <p>The download service starts on demand, so uQ&#x27;s Downloads page works without the app running.</p>
+      </description>
+    </release>
+    <release version="0.2.1" date="2026-11-17">
+      <description>
+        <p>Fixes and dependency updates.</p>
+      </description>
+    </release>
+    <release version="0.2.0" date="2026-11-16">
+      <description>
+        <p>A uQ Settings page and bar widget, and the window follows the uQ theme.</p>
+      </description>
+    </release>
+  </releases>
+</component>

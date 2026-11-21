@@ -37,6 +37,7 @@ package() {
   install -Dm644 hauler.service.generated "$pkgdir/usr/lib/systemd/user/hauler.service"
   rm hauler.service.generated
   install -Dm644 dist/hauler.desktop "$pkgdir/usr/share/applications/hauler.desktop"
+  install -Dm644 -t "$pkgdir/usr/share/metainfo" dist/io.github.asafelobotomy.hauler.metainfo.xml
   # uQ integration (uq/README.md): the uq files do nothing without uQ; the D-Bus service file
   # lets the session bus start haulerd through hauler.service.
   install -Dm644 -t "$pkgdir/usr/share/uq/shell/widgets/hauler" uq/widgets/hauler/widget.toml uq/widgets/hauler/Widget.qml
