@@ -29,6 +29,11 @@
   <project_license>GPL-3.0-or-later</project_license>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.3" date="2026-11-21">
+      <description>
+        <p>AppStream metadata, so software centres show Hauler.</p>
+      </description>
+    </release>
     <release version="0.2.2" date="2026-11-19">
       <description>
         <p>The download service starts on demand, so uQ&#x27;s Downloads page works without the app running.</p>
