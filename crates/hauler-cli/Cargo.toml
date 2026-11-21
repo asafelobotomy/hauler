@@ -27,6 +27,6 @@ tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 [dev-dependencies]
 hauler-daemon = { path = "../hauler-daemon" }
 hauler-testserver = { path = "../hauler-testserver" }
-toml = "0.9"
+toml = "1.2"
 tokio-util = "0.7.20"
 tokio = { version = "1.54.1", features = ["rt-multi-thread", "macros"] }
