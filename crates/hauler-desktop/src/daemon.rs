@@ -43,12 +43,12 @@ pub fn spawn_daemon() {
                 if let Ok(status) = child.wait()
                     && !status.success()
                 {
-                    eprintln!("haulerd exited: {status}");
+                    tracing::error!("[HAULER-013] haulerd exited: {status}");
                 }
             });
             *SPAWNED.lock().unwrap() = Some((pid, reaper));
         }
-        Err(e) => eprintln!("could not start {}: {e}", program.display()),
+        Err(e) => tracing::error!("[HAULER-013] could not start {}: {e}", program.display()),
     }
 }
 

@@ -162,7 +162,7 @@ async fn saver(shared: Arc<Shared>, mut state: ResumeState, path: PathBuf, stop:
             _ = tokio::time::sleep(shared.opts.save_interval) => {}
         }
         if let Err(e) = checkpoint(&shared, &mut state, &path).await {
-            warn!("could not save resume state: {e}");
+            warn!("[HAULER-010] could not save resume state: {e}");
         }
     }
 }

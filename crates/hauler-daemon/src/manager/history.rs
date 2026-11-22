@@ -33,7 +33,7 @@ impl Manager {
         };
         for id in removed {
             if let Err(e) = self.store.delete(id) {
-                warn!("could not forget download {id}: {e}");
+                warn!("[HAULER-003] could not forget download {id}: {e}");
             }
             self.emit(Event::TaskRemoved { id });
         }
@@ -47,7 +47,7 @@ impl Manager {
         entry.spec.headers.clear();
         entry.info.has_headers = false;
         if let Err(e) = self.store.clear_headers(entry.info.id) {
-            warn!("could not drop the saved headers of download {}: {e}", entry.info.id);
+            warn!("[HAULER-003] could not drop the saved headers of download {}: {e}", entry.info.id);
         }
     }
 

@@ -24,7 +24,7 @@ pub async fn serve(listener: UnixListener, manager: Arc<Manager>, shutdown: Canc
                 Ok((stream, _)) => {
                     tokio::spawn(connection(stream, manager.clone(), shutdown.clone()));
                 }
-                Err(e) => warn!("accept failed: {e}"),
+                Err(e) => warn!("[HAULER-008] accept failed: {e}"),
             },
         }
     }

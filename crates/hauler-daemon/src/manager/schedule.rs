@@ -144,7 +144,7 @@ impl Manager {
                 .map(|s| s.to_string())
                 .or_else(|| panic.downcast_ref::<String>().cloned())
                 .unwrap_or_else(|| "panic".into());
-            error!("download {id} crashed: {msg}");
+            error!("[HAULER-004] download {id} crashed: {msg}");
             Err(std::io::Error::other(format!("internal error: {msg}")).into())
         });
         self.on_finished(id, result);
@@ -231,7 +231,7 @@ impl Manager {
                 entry.retry_at = Some(Instant::now() + delay);
             }
             Err(e) => {
-                warn!("download {id} failed: {e}");
+                warn!("[HAULER-005] download {id} failed: {e}");
                 entry.info.state = TaskState::Failed;
                 entry.info.error = Some(e.to_string());
                 entry.info.finished_at = Some(now());
@@ -271,7 +271,7 @@ impl Manager {
         if save {
             let rows: Vec<_> = updates.iter().map(|u| (u.id, u.received)).collect();
             if let Err(e) = self.store.update_received(&rows) {
-                warn!("could not save progress: {e}");
+                warn!("[HAULER-001] could not save progress: {e}");
             }
         }
         self.emit(Event::Progress { updates });
@@ -296,7 +296,7 @@ impl Manager {
         info!("stopping {} downloads", handles.len());
         let all = futures_util::future::join_all(handles);
         if tokio::time::timeout(Duration::from_secs(10), all).await.is_err() {
-            warn!("some downloads did not stop within 10 s");
+            warn!("[HAULER-006] some downloads did not stop within 10 s");
         }
     }
 }

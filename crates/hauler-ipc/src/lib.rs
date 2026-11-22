@@ -11,6 +11,9 @@ use serde_json::Value;
 
 mod client;
 mod scan;
+// uQ's log format and crash records (uQ's native/uq-diag; don't edit, copy a new release over).
+#[rustfmt::skip]
+pub mod uq_diag;
 
 pub use client::{Client, ClientError, Events};
 pub use scan::{ScanReport, ScanState};

@@ -1,0 +1,103 @@
+# Hauler's problem codes for uQ (`uqctl log`, `uqctl explain`, Settings › Problems). Installed as
+# /usr/share/uq/diag/hauler.toml. A code never changes meaning: set `retired = true` on one nothing
+# logs any more, and give a new problem the next number.
+app = "Hauler"
+units = ["hauler.service"]
+
+[[code]]
+id = "HAULER-001"
+severity = "warn"
+title = "Hauler couldn't save a download's progress"
+means = "Hauler couldn't write a download's details or progress to its database, so after a restart that download may start over or be missing from the list."
+fix = "Check that your home folder isn't full and that ~/.local/share/hauler belongs to you."
+
+[[code]]
+id = "HAULER-002"
+severity = "warn"
+title = "Hauler isn't reachable over D-Bus"
+means = "haulerd couldn't take its name on the session bus, so uQ's bar widget and launcher can't see your downloads. The Hauler window and the hauler command still work."
+fix = "Another haulerd may be running: run `systemctl --user restart hauler`."
+
+[[code]]
+id = "HAULER-003"
+severity = "warn"
+title = "A finished download couldn't be cleared"
+means = "Hauler couldn't remove a download (or its saved details) from its history, so it may still be listed."
+fix = "Clear it again from the window or with `hauler remove ID`."
+
+[[code]]
+id = "HAULER-004"
+severity = "error"
+title = "A download stopped on an internal error"
+means = "Something went wrong inside Hauler while it downloaded one file. That download failed; the others carry on."
+fix = "Retry the download. If it happens again, copy a report from uQ Settings' Problems page for Hauler's developer."
+
+[[code]]
+id = "HAULER-005"
+severity = "warn"
+title = "A download failed"
+means = "Hauler couldn't finish a download, usually because the server or the network refused it. The logged line says why."
+fix = "Check the link and your connection, then resume or retry it from the Hauler window."
+
+[[code]]
+id = "HAULER-006"
+severity = "warn"
+title = "Some downloads didn't stop in time"
+means = "When haulerd was stopped, some downloads took longer than 10 seconds to pause, so their last few seconds may be fetched again."
+fix = "Nothing to do; they resume where they were saved."
+
+[[code]]
+id = "HAULER-007"
+severity = "warn"
+title = "Hauler couldn't keep the computer awake"
+means = "Hauler asks the system not to sleep while it downloads; that request failed, so the computer may sleep mid-download (it resumes after)."
+fix = "Check that systemd-logind is running. You can also turn off sleep while big downloads run."
+
+[[code]]
+id = "HAULER-008"
+severity = "warn"
+title = "Hauler turned down a connection"
+means = "haulerd couldn't accept a connection from the window, the hauler command or the browser, which may then show it as not running."
+fix = "Try again. If it keeps happening, restart it: systemctl --user restart hauler."
+
+[[code]]
+id = "HAULER-009"
+severity = "warn"
+title = "A download's resume point was unreadable"
+means = "Hauler couldn't read where a paused download had got to, so it starts that file again from the beginning."
+fix = "Nothing to do; the download continues from the start."
+
+[[code]]
+id = "HAULER-010"
+severity = "warn"
+title = "A download's resume point couldn't be saved"
+means = "Hauler couldn't save where a download had got to, so if it is paused or stopped it may have to start over."
+fix = "Check that the download folder is writable and not full."
+
+[[code]]
+id = "HAULER-011"
+severity = "warn"
+title = "A file being downloaded is in use"
+means = "Hauler couldn't lock the file it downloads into, usually because another download or program writes the same file."
+fix = "Make sure the same link isn't being downloaded twice, or pick another file name."
+
+[[code]]
+id = "HAULER-012"
+severity = "warn"
+title = "Hauler couldn't check for another open window"
+means = "The Hauler window couldn't tell whether one was already open, so links may open a second window."
+fix = "Close the extra window. If it keeps happening, check that XDG_RUNTIME_DIR is set in your session."
+
+[[code]]
+id = "HAULER-013"
+severity = "error"
+title = "The Hauler window couldn't start haulerd"
+means = "The window starts haulerd when it isn't running; it couldn't start it, or haulerd stopped, so no downloads run."
+fix = "Run `haulerd` in a terminal to see why, or enable the service: systemctl --user enable --now hauler."
+
+[[code]]
+id = "HAULER-014"
+severity = "warn"
+title = "The Hauler window sent something it shouldn't"
+means = "Hauler's window passed haulerd a request it couldn't read, so that one action did nothing. This is a bug in the window."
+fix = "Try again. If it repeats, copy a report from uQ Settings' Problems page for Hauler's developer."

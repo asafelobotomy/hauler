@@ -700,7 +700,7 @@ dependencies = [
 
 [[package]]
 name = "hauler-cli"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "anyhow",
  "clap",
@@ -722,7 +722,7 @@ dependencies = [
 
 [[package]]
 name = "hauler-daemon"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "anyhow",
  "clap",
@@ -745,7 +745,7 @@ dependencies = [
 
 [[package]]
 name = "hauler-desktop"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "cxx",
  "cxx-qt",
@@ -756,11 +756,12 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "tracing",
 ]
 
 [[package]]
 name = "hauler-engine"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "fastrand",
  "futures-util",
@@ -780,18 +781,20 @@ dependencies = [
 
 [[package]]
 name = "hauler-ipc"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "libc",
  "serde",
  "serde_json",
  "thiserror 2.0.21",
  "tokio",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
 name = "hauler-testserver"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "bytes",
  "clap",

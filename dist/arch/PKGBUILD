@@ -5,7 +5,7 @@
 # An AUR package would use the same steps with a release tarball as source.
 
 pkgname=hauler
-pkgver=0.2.3
+pkgver=0.2.4
 pkgrel=1
 pkgdesc='Fast, resumable download manager: segmented engine, systemd daemon and Kirigami app'
 arch=('x86_64')
@@ -43,6 +43,7 @@ package() {
   install -Dm644 -t "$pkgdir/usr/share/uq/shell/widgets/hauler" uq/widgets/hauler/widget.toml uq/widgets/hauler/Widget.qml
   install -Dm644 -t "$pkgdir/usr/share/uq/launcher" uq/launcher/hauler.provider
   install -Dm644 -t "$pkgdir/usr/share/uq/settings/pages/hauler" uq/pages/hauler/*
+  install -Dm644 -t "$pkgdir/usr/share/uq/diag" uq/diag/hauler.toml
   install -Dm644 -t "$pkgdir/usr/share/dbus-1/services" uq/dbus/org.hauler.Hauler1.service
   install -Dm644 -t "$pkgdir/usr/share/licenses/$pkgname" COPYING LICENSE-MIT LICENSE-APACHE
   install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"

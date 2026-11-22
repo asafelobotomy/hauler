@@ -174,7 +174,7 @@ impl Manager {
 
     fn save(&self, entry: &Entry) {
         if let Err(e) = self.store.update(&entry.info, &entry.spec) {
-            warn!("could not save download {}: {e}", entry.info.id);
+            warn!("[HAULER-001] could not save download {}: {e}", entry.info.id);
         }
     }
 
