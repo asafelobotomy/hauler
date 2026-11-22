@@ -4,13 +4,13 @@
 //! The socket lives in `$XDG_RUNTIME_DIR/hauler/`, which only the user can
 //! open, so file permissions are the authentication.
 
-use std::path::PathBuf;
-
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::path::PathBuf;
 
 mod client;
 mod scan;
+#[rustfmt::skip] pub mod uq_diag;
 
 pub use client::{Client, ClientError, Events};
 pub use scan::{ScanReport, ScanState};

@@ -38,7 +38,7 @@ pub(super) fn lock_part(path: &Path) -> Result<Option<File>> {
         Err(rustix::io::Errno::WOULDBLOCK) => Ok(None),
         // Some network filesystems cannot lock; carry on without it.
         Err(e) => {
-            warn!("cannot lock {}: {e}", path.display());
+            warn!("[HAULER-011] cannot lock {}: {e}", path.display());
             Ok(Some(f))
         }
     }
@@ -80,7 +80,7 @@ pub(super) async fn finish(opts: &Options, paths: &Paths) -> Result<Outcome> {
             if let Ok(Some(mut state)) = ResumeState::load(&paths.state) {
                 state.segments.clear();
                 if let Err(e) = state.save(&paths.state) {
-                    warn!("could not reset resume state: {e}");
+                    warn!("[HAULER-010] could not reset resume state: {e}");
                 }
             }
             return Err(e);

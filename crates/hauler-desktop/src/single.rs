@@ -36,7 +36,7 @@ pub fn claim(urls: &[String]) -> bool {
     match claim_in(&dir(), urls) {
         Ok(primary) => primary,
         Err(e) => {
-            eprintln!("could not check for a running Hauler, starting anyway: {e}");
+            tracing::warn!("[HAULER-012] could not check for a running Hauler, starting anyway: {e}");
             true
         }
     }
@@ -79,7 +79,7 @@ pub fn serve(on_launch: impl Fn(String) + Send + 'static) {
         }
     });
     if let Err(e) = spawned {
-        eprintln!("cannot listen for later launches: {e}");
+        tracing::warn!("[HAULER-012] cannot listen for later launches: {e}");
     }
 }
 

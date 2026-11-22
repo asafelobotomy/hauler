@@ -158,7 +158,7 @@ impl Backend {
     fn add(&self, params_json: &QString) {
         match serde_json::from_str::<AddParams>(&params_json.to_string()) {
             Ok(p) => self.send(Command::Add(p)),
-            Err(e) => eprintln!("bad add parameters from QML: {e}"),
+            Err(e) => tracing::warn!("[HAULER-014] bad add parameters from QML: {e}"),
         }
     }
 
@@ -197,7 +197,7 @@ impl Backend {
     fn save_settings(&self, patch_json: &QString) {
         match serde_json::from_str::<SettingsPatch>(&patch_json.to_string()) {
             Ok(p) => self.send(Command::Settings(p)),
-            Err(e) => eprintln!("bad settings from QML: {e}"),
+            Err(e) => tracing::warn!("[HAULER-014] bad settings from QML: {e}"),
         }
     }
 

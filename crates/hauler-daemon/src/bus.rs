@@ -129,7 +129,7 @@ pub async fn run(manager: Arc<Manager>, shutdown: CancellationToken) {
         Err(e) => return info!("no session bus, {BUS_NAME} off: {e}"),
     };
     if let Err(e) = serve(&conn, manager, shutdown).await {
-        warn!("could not serve {BUS_NAME}: {e}");
+        warn!("[HAULER-002] could not serve {BUS_NAME}: {e}");
     }
 }
 

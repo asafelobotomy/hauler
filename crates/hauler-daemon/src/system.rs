@@ -55,7 +55,7 @@ pub async fn inhibit_sleep(mut active: watch::Receiver<u32>, shutdown: Cancellat
                     debug!("holding sleep inhibitor");
                     held = Some(fd);
                 }
-                Err(e) => warn!("could not inhibit sleep: {e}"),
+                Err(e) => warn!("[HAULER-007] could not inhibit sleep: {e}"),
             }
         } else if running == 0 && held.take().is_some() {
             debug!("released sleep inhibitor");

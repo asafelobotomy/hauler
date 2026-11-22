@@ -70,10 +70,11 @@ async fn main() -> anyhow::Result<ExitCode> {
     // Exit quietly when piped into `head` and the like, as other CLI tools do.
     // SAFETY: called before any other threads touch signal handling.
     unsafe { libc::signal(libc::SIGPIPE, libc::SIG_DFL) };
-    tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::try_from_env("HAULER_LOG").unwrap_or_else(|_| "warn".into()))
-        .with_writer(std::io::stderr)
-        .init();
+    // uQ's log format and a crash record on a panic (uQ's native/uq-diag).
+    hauler_ipc::uq_diag::init_with(
+        "hauler",
+        tracing_subscriber::EnvFilter::try_from_env("HAULER_LOG").unwrap_or_else(|_| "warn".into()),
+    );
     match Cli::parse().command {
         Command::Get(args) => get::run(args).await,
         Command::Add(args) => remote::add(args).await,

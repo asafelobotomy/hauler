@@ -1,3 +1,4 @@
+use hauler_ipc::uq_diag::{Style, UqFormat};
 use std::fs::{self, File, OpenOptions};
 use std::io::IsTerminal;
 use std::os::fd::AsFd;
@@ -65,11 +66,14 @@ fn init_logging(db: &Path) {
         tracing_subscriber::fmt().with_env_filter(filter()).with_ansi(false).with_writer(Mutex::new(file)).init();
         return;
     }
+    // uQ's log format: `<4>haulerd: [HAULER-…] …` in the journal (no panic hook: a download's
+    // panic is caught and logged as HAULER-004, and haulerd carries on).
+    let style = if stderr_is_journal() { Style::Journal } else { Style::Terminal };
     tracing_subscriber::fmt()
         .with_env_filter(filter())
-        .without_time() // journald adds timestamps
-        .with_ansi(stderr.is_terminal())
+        .with_ansi(false)
         .with_writer(std::io::stderr)
+        .event_format(UqFormat { style, program: "haulerd" })
         .init();
 }
 

@@ -199,7 +199,7 @@ pub async fn prepare(client: Client, url: &str, dir: &Path, opts: Options) -> Re
 
     let saved = if resume {
         ResumeState::load(&state_path).unwrap_or_else(|e| {
-            warn!("ignoring resume state: {e}");
+            warn!("[HAULER-009] ignoring resume state: {e}");
             None
         })
     } else {
