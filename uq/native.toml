@@ -1,0 +1,11 @@
+# uQ kits this repo vendors unchanged (uQ's native/README.md). CI: scripts/check-uq-native.sh
+
+[uq-diag]
+version = "1.0.1"
+files = ["crates/hauler-ipc/src/uq_diag.rs"]
+codes = "uq/diag/hauler.toml"
+sources = ["crates"]
+
+[uq-theme]
+version = "1.1.0"
+files = ["crates/hauler-desktop/cpp/uqkdetheme.h", "crates/hauler-desktop/cpp/uqkdetheme.cpp"]

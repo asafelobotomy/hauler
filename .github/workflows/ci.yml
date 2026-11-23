@@ -40,10 +40,8 @@ jobs:
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
       - name: Clippy
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
-      - name: uq-diag is the pinned release, and the problem codes match uq/diag/hauler.toml
-        run: |
-          scripts/check-uq-diag.sh 1.0.1 crates/hauler-ipc/src/uq_diag.rs
-          scripts/check-diag-codes.sh uq/diag/hauler.toml crates
+      - name: uQ's kits (uq/native.toml) are the pinned releases, and the problem codes match uq/diag/hauler.toml
+        run: scripts/check-uq-native.sh
       - name: Tests
         run: cargo test --workspace --locked
 
@@ -64,7 +62,7 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       # The uQ release whose `uqctl` checks the page (uq_api 3 is in every release since v0.3.0).
-      UQ_TAG: v0.3.35
+      UQ_TAG: v0.3.37
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

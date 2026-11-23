@@ -6,7 +6,7 @@
 # checkout instead.
 
 pkgname=hauler
-pkgver=0.2.4
+pkgver=0.2.5
 pkgrel=1
 pkgdesc='Fast, resumable download manager: segmented engine, systemd daemon and Kirigami app'
 arch=('x86_64')
