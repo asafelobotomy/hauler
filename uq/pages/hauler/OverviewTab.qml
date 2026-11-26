@@ -4,6 +4,7 @@ import QtQuick.Controls as QQC2
 import QtQuick.Layouts
 import org.uq.settings
 import "logic.js" as Logic
+import "edit.js" as Edit
 
 SettingsTab {
     id: tab
@@ -127,7 +128,7 @@ SettingsTab {
                 text: "Add"
                 enabled: link.text.trim() !== ""
                 onClicked: {
-                    const why = Logic.linkProblem(link.text);
+                    const why = Edit.linkProblem(link.text);
                     if (why !== "") {
                         tab.host.setNote("add", { message: why, failed: true });
                         return;
