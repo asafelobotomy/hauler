@@ -9,3 +9,7 @@ sources = ["crates"]
 [uq-theme]
 version = "1.1.0"
 files = ["crates/hauler-desktop/cpp/uqkdetheme.h", "crates/hauler-desktop/cpp/uqkdetheme.cpp"]
+
+[uq-loc]
+version = "1.0.0"
+files = ["scripts/check-loc.sh"]

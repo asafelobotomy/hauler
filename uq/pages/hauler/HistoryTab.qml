@@ -5,6 +5,7 @@ import QtQuick.Controls as QQC2
 import QtQuick.Layouts
 import org.uq.settings
 import "logic.js" as Logic
+import "edit.js" as Edit
 
 SettingsTab {
     id: tab
@@ -14,7 +15,7 @@ SettingsTab {
     readonly property string filter: Logic.FILTERS[tab.filterIndex].id
     readonly property var rows: Logic.historyRows(tab.host ? tab.host.history : null, tab.filter)
     readonly property bool loaded: !!tab.host && tab.host.history !== null && tab.host.history.ok
-    readonly property var days: Logic.retentionChoices(tab.host ? tab.host.setting("history_days") : undefined)
+    readonly property var days: Edit.retentionChoices(tab.host ? tab.host.setting("history_days") : undefined)
 
     title: "History"
     iconName: "view-history"

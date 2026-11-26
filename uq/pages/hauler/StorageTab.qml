@@ -6,6 +6,7 @@ import QtQuick.Dialogs
 import QtQuick.Layouts
 import org.uq.settings
 import "logic.js" as Logic
+import "edit.js" as Edit
 
 SettingsTab {
     id: tab
@@ -13,7 +14,7 @@ SettingsTab {
     property var host
     readonly property var storage: tab.host ? tab.host.storage : null
     readonly property bool loaded: tab.storage !== null && tab.storage.ok
-    readonly property var reserve: Logic.reserveChoices(tab.storage !== null && tab.storage.ok ? tab.storage.minFree : undefined)
+    readonly property var reserve: Edit.reserveChoices(tab.storage !== null && tab.storage.ok ? tab.storage.minFree : undefined)
     readonly property int rev: tab.host ? tab.host.configRev : 0
 
     title: "Storage"
@@ -28,7 +29,7 @@ SettingsTab {
     FolderDialog {
         id: folderDialog
         title: "Choose the download folder"
-        onAccepted: tab.host.setConfig("download_dir", Logic.folderPath(selectedFolder), false)
+        onAccepted: tab.host.setConfig("download_dir", Edit.folderPath(selectedFolder), false)
     }
 
     SettingsCard {
@@ -60,7 +61,7 @@ SettingsTab {
                 onEditingFinished: {
                     if (!tab.loaded || folder.text === tab.storage.dir)
                         return;
-                    const why = Logic.folderProblem(folder.text);
+                    const why = Edit.folderProblem(folder.text);
                     if (why !== "") {
                         tab.host.setNote("cfg:download_dir", { message: why, failed: true });
                         folder.text = Qt.binding(() => tab.storage.dir);

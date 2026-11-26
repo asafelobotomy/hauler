@@ -8,6 +8,7 @@ import QtQuick.Controls as QQC2
 import QtQuick.Layouts
 import org.uq.settings
 import "logic.js" as Logic
+import "edit.js" as Edit
 
 SettingsPage {
     id: page
@@ -134,7 +135,7 @@ SettingsPage {
         page.workingKey = noteKey;
         page.ctx.command.run("preview-config", [key, String(value)], page.guard(result => {
             page.workingKey = "";
-            const plan = Logic.parsePlan(result);
+            const plan = Edit.parsePlan(result);
             if (!plan.ok || plan.refused) {
                 page.setNote(noteKey, { message: plan.ok ? plan.reason : plan.problem, failed: true });
                 return;
@@ -165,15 +166,15 @@ SettingsPage {
     }
 
     function removeOne(id, withFile) {
-        page.write("row:" + id, withFile ? "remove-one-files" : "remove-one", [id], null, Logic.removedLine);
+        page.write("row:" + id, withFile ? "remove-one-files" : "remove-one", [id], null, Edit.removedLine);
     }
 
     function clearHistory(state, withFiles) {
-        page.write("clear", withFiles ? "clear-history-files" : "clear-history", [state], null, Logic.removedLine);
+        page.write("clear", withFiles ? "clear-history-files" : "clear-history", [state], null, Edit.removedLine);
     }
 
     function forgetLogins() {
-        page.write("forget", "forget-headers", [], null, Logic.forgottenLine);
+        page.write("forget", "forget-headers", [], null, Edit.forgottenLine);
     }
 
     function scanOne(id) {
@@ -181,11 +182,11 @@ SettingsPage {
     }
 
     function scanAll() {
-        page.write("scan", "scan-all", [], null, r => Logic.scanStartedLine(r));
+        page.write("scan", "scan-all", [], null, r => Edit.scanStartedLine(r));
     }
 
     function cleanLeftovers() {
-        page.write("leftovers", "cleanup", [], null, Logic.cleanedLine);
+        page.write("leftovers", "cleanup", [], null, Edit.cleanedLine);
     }
 
     function openApp() {

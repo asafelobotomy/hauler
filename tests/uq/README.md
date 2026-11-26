@@ -1,8 +1,8 @@
 Tests for hauler's Downloads page in uQ Settings (`uq/pages/hauler/`).
 
 ```
-logic.test.mjs     Node: logic.js, page.toml, and what the QML may send   node --test 'tests/uq/*.test.mjs'
-load-logic.mjs     loads logic.js (no Qt calls in it) for Node
+logic.test.mjs     Node: logic.js, edit.js, page.toml, and what the QML may send   node --test 'tests/uq/*.test.mjs'
+load-logic.mjs     loads logic.js and edit.js (no Qt calls in them; `.import`s followed) for Node
 toml-lite.mjs      the small TOML reader the Node tests use for page.toml
 tst_*.qml          QML: the page, tab by tab, against a fake ctx (needs Qt 6; CI runs it)
 PageHarness.qml    what the QML tests share: the page in a Loader, a fake ctx answering every command from fixtures/

@@ -5,6 +5,7 @@ import QtQuick.Controls as QQC2
 import QtQuick.Layouts
 import org.uq.settings
 import "logic.js" as Logic
+import "edit.js" as Edit
 
 SettingsTab {
     id: tab
@@ -84,7 +85,7 @@ SettingsTab {
         }
         UqLabel {
             objectName: "scan-summary"
-            text: Logic.scanSummary(tab.scans)
+            text: Edit.scanSummary(tab.scans)
             visible: !!tab.host && tab.host.history !== null && tab.host.history.ok
             wrapMode: Text.Wrap
             Layout.fillWidth: true

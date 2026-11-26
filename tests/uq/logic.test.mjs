@@ -11,7 +11,8 @@ import { parseToml } from "./toml-lite.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const pageDir = join(here, "../../uq/pages/hauler");
-const logic = loadLogic(join(pageDir, "logic.js"));
+// logic.js reads and words; edit.js checks and words what the person changes. One API for the tests.
+const logic = { ...loadLogic(join(pageDir, "logic.js")), ...loadLogic(join(pageDir, "edit.js")) };
 const manifest = parseToml(readFileSync(join(pageDir, "page.toml"), "utf8"));
 const qmlFiles = readdirSync(pageDir).filter((f) => f.endsWith(".qml")).sort();
 const qmlOf = (f) => readFileSync(join(pageDir, f), "utf8");
