@@ -20,6 +20,7 @@ jobs:
   fmt:
     name: Format
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: rustup toolchain install stable --profile minimal --component rustfmt
@@ -30,6 +31,7 @@ jobs:
   test:
     name: Clippy and tests (Arch, Qt 6, Kirigami)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     container: archlinux:latest
     steps:
       - name: Install build dependencies
@@ -48,6 +50,7 @@ jobs:
   deny:
     name: Dependency advisories
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: EmbarkStudios/cargo-deny-action@70f81531115945ba6eb6b941ec9d39d063438eb9 # v2
@@ -60,6 +63,7 @@ jobs:
   uq:
     name: uQ Settings page
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     env:
       # The uQ release whose `uqctl` checks the page (uq_api 3 is in every release since v0.3.0).
       UQ_TAG: v0.3.37
